@@ -7,12 +7,10 @@ export default async function handler(req, res) {
   // Only allow GET
   if (req.method !== "GET") return res.status(405).end();
 
-  // Protect with a secret header so random people can't spam your DB
-  // Set CRON_SECRET in Vercel env vars, and the same in cron-job.org request headers
-  // const secret = process.env.CRON_SECRET
-  // if (secret && req.headers['x-cron-secret'] !== secret) {
-  //   return res.status(401).json({ error: 'Unauthorized' })
-  // }
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers["x-cron-secret"] !== secret) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
 
   try {
     const response = await fetch(FIVEM_API, {
