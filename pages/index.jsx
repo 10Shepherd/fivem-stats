@@ -805,7 +805,8 @@ export default function Dashboard() {
               letterSpacing: "0.1em",
             }}
           >
-            data via cfx.re public api · polls every 60s
+            data via cfx.re public api · polls every 60s · Made by a community
+            member, not affiliated with NoPixel
           </span>
           <span
             style={{
