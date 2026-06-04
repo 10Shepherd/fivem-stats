@@ -14,7 +14,7 @@ import HourlyHeatmap from "../components/HourlyHeatmap";
 import DailyPeakBar from "../components/DailyPeakBar";
 
 const SERVER_CODE = "3lamjz";
-const REFRESH_MS = 60_000;
+const REFRESH_MS = 30_000;
 
 function toDateInput(d) {
   return d.toISOString().split("T")[0];
@@ -86,6 +86,7 @@ export default function Dashboard() {
   const [fromDate, setFromDate] = useState(toDateInput(weekAgo));
   const [toDate, setToDate] = useState(toDateInput(today));
   const [rangeError, setRangeError] = useState("");
+  const [countdown, setCountdown] = useState(30);
 
   const timerRef = useRef(null);
 
@@ -149,6 +150,17 @@ export default function Dashboard() {
       fetchHistory({ hours: activePreset });
     }
   }, [activePreset, filterMode]); // eslint-disable-line
+
+  useEffect(() => {
+    setCountdown(30);
+    const tick = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) return 30;
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [lastSync]);
 
   function applyDateRange() {
     if (!fromDate || !toDate) {
@@ -296,7 +308,7 @@ export default function Dashboard() {
               letterSpacing: "0.06em",
             }}
           >
-            {lastSync ? fmtTime(lastSync) : "—"}
+            {lastSync ? `next sync ${countdown}s` : "connecting..."}
           </span>
           <button
             onClick={refreshAll}
