@@ -1,7 +1,7 @@
 import sql from "../../lib/db";
 
 const SERVER_CODE = "3lamjz";
-const FIVEM_API = `https://servers-frontend.fivem.net/api/servers/single/${SERVER_CODE}`;
+const FIVEM_API = `https://frontend.cfx-services.net/api/servers/single/${SERVER_CODE}`;
 
 export default async function handler(req, res) {
   // Only allow GET
