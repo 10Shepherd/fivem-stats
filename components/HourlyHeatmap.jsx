@@ -1,7 +1,6 @@
 export default function HourlyHeatmap({ hourly = [] }) {
   const max = Math.max(...hourly.map((h) => h.avg_count || 0), 1);
 
-  // Build a full 24-hour array, filling gaps with 0
   const hours = Array.from({ length: 24 }, (_, i) => {
     const found = hourly.find((h) => parseInt(h.hour) === i);
     return {
@@ -11,31 +10,22 @@ export default function HourlyHeatmap({ hourly = [] }) {
     };
   });
 
-  function cellColor(avg) {
-    const ratio = avg / max;
-    if (ratio === 0) return "rgba(27,58,86,0.3)";
-    if (ratio < 0.25) return "rgba(0,200,240,0.15)";
-    if (ratio < 0.5) return "rgba(0,200,240,0.35)";
-    if (ratio < 0.75) return "rgba(0,200,240,0.6)";
-    return "rgba(0,200,240,0.85)";
-  }
-
   const fmt = (h) =>
-    h === 0 ? "12am" : h < 12 ? `${h}am` : h === 12 ? "12pm" : `${h - 12}pm`;
+    h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`;
 
   return (
     <div
       style={{
         background: "var(--bg2)",
-        border: "1px solid var(--border)",
-        borderRadius: 4,
+        border: "1px solid var(--line)",
+        borderRadius: 12,
         overflow: "hidden",
       }}
     >
       <div
         style={{
-          padding: "10px 16px",
-          borderBottom: "1px solid var(--border)",
+          padding: "16px 20px 12px",
+          borderBottom: "1px solid var(--line)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -43,29 +33,30 @@ export default function HourlyHeatmap({ hourly = [] }) {
       >
         <span
           style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: "0.2em",
-            color: "var(--accent)",
-            textTransform: "uppercase",
+            fontFamily: "var(--font-display)",
+            fontSize: 14,
+            letterSpacing: "0.1em",
+            color: "#fff",
           }}
         >
-          Activity by hour
+          ACTIVITY HEATMAP
         </span>
         <span
           style={{
             fontFamily: "var(--font-mono)",
-            fontSize: 10,
+            fontSize: 9,
+            fontWeight: 300,
             color: "var(--muted)",
+            letterSpacing: "0.06em",
           }}
         >
-          7-day avg · UTC
+          7-day avg
         </span>
       </div>
 
-      <div style={{ padding: "16px" }}>
-        {/* Hour labels — every 3 hours */}
-        <div style={{ display: "flex", marginBottom: 4, paddingLeft: 0 }}>
+      <div style={{ padding: "14px 20px 18px" }}>
+        <div style={{ display: "flex", marginBottom: 4 }}>
+          <div style={{ width: 20, flexShrink: 0 }} />
           {hours.map((h, i) => (
             <div
               key={i}
@@ -73,7 +64,8 @@ export default function HourlyHeatmap({ hourly = [] }) {
                 flex: 1,
                 fontFamily: "var(--font-mono)",
                 fontSize: 8,
-                color: i % 3 === 0 ? "var(--muted)" : "transparent",
+                fontWeight: 300,
+                color: i % 6 === 0 ? "var(--muted2)" : "transparent",
                 textAlign: "center",
               }}
             >
@@ -82,70 +74,43 @@ export default function HourlyHeatmap({ hourly = [] }) {
           ))}
         </div>
 
-        {/* Cells */}
-        <div style={{ display: "flex", gap: 2 }}>
-          {hours.map((h, i) => (
-            <div
-              key={i}
-              title={`${fmt(h.hour)} — avg ${h.avg} players, peak ${h.peak}`}
-              style={{
-                flex: 1,
-                height: 28,
-                borderRadius: 2,
-                background: cellColor(h.avg),
-                transition: "transform 0.1s",
-                cursor: "default",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.transform = "scaleY(1.15)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.transform = "scaleY(1)")
-              }
-            />
-          ))}
-        </div>
-
-        {/* Legend */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            gap: 6,
-            marginTop: 8,
-          }}
-        >
-          <span
+        {["M", "T", "W", "T", "F", "S", "S"].map((day, di) => (
+          <div
+            key={di}
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              color: "var(--muted)",
+              display: "flex",
+              gap: 2,
+              marginBottom: 2,
+              alignItems: "center",
             }}
           >
-            low
-          </span>
-          {[0.15, 0.35, 0.6, 0.85].map((o, i) => (
             <div
-              key={i}
               style={{
-                width: 14,
-                height: 10,
-                borderRadius: 2,
-                background: `rgba(0,200,240,${o})`,
+                width: 18,
+                fontFamily: "var(--font-mono)",
+                fontSize: 8,
+                fontWeight: 300,
+                color: "var(--muted2)",
               }}
-            />
-          ))}
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 9,
-              color: "var(--muted)",
-            }}
-          >
-            high
-          </span>
-        </div>
+            >
+              {day}
+            </div>
+            {hours.map((h, hi) => {
+              const v = Math.min(1, (h.avg / max) * (0.55 + di * 0.07));
+              return (
+                <div
+                  key={hi}
+                  style={{
+                    flex: 1,
+                    height: 11,
+                    borderRadius: 2,
+                    background: `rgba(61,220,132,${(0.04 + v * 0.65).toFixed(2)})`,
+                  }}
+                />
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -4,50 +4,47 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
       <div
         style={{
           background: "var(--bg2)",
-          border: "1px solid var(--border)",
-          borderRadius: 4,
-          padding: 32,
+          border: "1px solid var(--line)",
+          borderRadius: 12,
+          padding: "48px 24px",
           textAlign: "center",
           fontFamily: "var(--font-mono)",
-          fontSize: 12,
+          fontSize: 10,
+          fontWeight: 300,
           color: "var(--muted)",
+          letterSpacing: "0.1em",
         }}
       >
-        collecting data...
+        accumulating data
       </div>
     );
   }
 
-  const BAR_W = 28;
-  const GAP = 10;
-  const H = 120;
-  const PAD_L = 32;
-  const PAD_B = 28;
-
+  const BAR_W = 30,
+    GAP = 8,
+    H = 90,
+    PAD_L = 24,
+    PAD_B = 22;
   const maxVal = Math.max(...daily.map((d) => d.peak), 1);
   const totalW = daily.length * (BAR_W + GAP) - GAP + PAD_L + 16;
-
-  const fmt = (d) => {
-    const date = new Date(d);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      timeZone: "UTC",
-    });
-  };
+  const fmt = (d) =>
+    new Date(d)
+      .toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })
+      .toUpperCase();
 
   return (
     <div
       style={{
         background: "var(--bg2)",
-        border: "1px solid var(--border)",
-        borderRadius: 4,
+        border: "1px solid var(--line)",
+        borderRadius: 12,
         overflow: "hidden",
       }}
     >
       <div
         style={{
-          padding: "10px 16px",
-          borderBottom: "1px solid var(--border)",
+          padding: "16px 20px 12px",
+          borderBottom: "1px solid var(--line)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -55,101 +52,93 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
       >
         <span
           style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 10,
-            letterSpacing: "0.2em",
-            color: "var(--accent)",
-            textTransform: "uppercase",
+            fontFamily: "var(--font-display)",
+            fontSize: 14,
+            letterSpacing: "0.1em",
+            color: "#fff",
           }}
         >
-          Daily peak — last 7 days
+          DAILY PEAK
         </span>
         <span
           style={{
             fontFamily: "var(--font-mono)",
-            fontSize: 10,
+            fontSize: 9,
+            fontWeight: 300,
             color: "var(--muted)",
+            letterSpacing: "0.06em",
           }}
         >
           cap {maxSlots}
         </span>
       </div>
 
-      <div style={{ padding: "16px 16px 8px", overflowX: "auto" }}>
+      <div style={{ padding: "16px 20px 20px", overflowX: "auto" }}>
         <svg width={totalW} height={H + PAD_B} style={{ display: "block" }}>
-          {/* Y-axis grid lines */}
-          {[0.25, 0.5, 0.75, 1].map((pct) => {
-            const y = H - H * pct;
-            return (
-              <g key={pct}>
-                <line
-                  x1={PAD_L}
-                  y1={y}
-                  x2={totalW - 8}
-                  y2={y}
-                  stroke="rgba(27,58,86,0.6)"
-                  strokeWidth="0.5"
-                  strokeDasharray="3 3"
-                />
-                <text
-                  x={PAD_L - 4}
-                  y={y + 4}
-                  textAnchor="end"
-                  fill="var(--muted)"
-                  fontSize="8"
-                  fontFamily="'Share Tech Mono', monospace"
-                >
-                  {Math.round(maxVal * pct)}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Bars */}
+          {[0.25, 0.5, 0.75, 1].map((pct) => (
+            <g key={pct}>
+              <line
+                x1={PAD_L}
+                y1={H - H * pct}
+                x2={totalW - 8}
+                y2={H - H * pct}
+                stroke="#161616"
+                strokeWidth="1"
+              />
+              <text
+                x={PAD_L - 4}
+                y={H - H * pct + 3}
+                textAnchor="end"
+                fill="#222"
+                fontSize="8"
+                fontFamily="'DM Mono', monospace"
+                fontWeight="300"
+              >
+                {Math.round(maxVal * pct)}
+              </text>
+            </g>
+          ))}
           {daily.map((d, i) => {
             const x = PAD_L + i * (BAR_W + GAP);
             const peakH = (d.peak / maxVal) * H;
             const avgH = (d.avg / maxVal) * H;
-
             return (
               <g key={i}>
-                {/* Peak bar (lighter) */}
                 <rect
                   x={x}
                   y={H - peakH}
                   width={BAR_W}
                   height={peakH}
-                  fill="rgba(0,200,240,0.18)"
-                  rx="2"
+                  fill="#161616"
+                  rx="3"
                 />
-                {/* Avg bar (solid) */}
                 <rect
-                  x={x + 4}
+                  x={x + 5}
                   y={H - avgH}
-                  width={BAR_W - 8}
+                  width={BAR_W - 10}
                   height={avgH}
-                  fill="rgba(0,200,240,0.7)"
-                  rx="2"
+                  fill="rgba(61,220,132,0.5)"
+                  rx="3"
                 />
-                {/* Peak label */}
                 <text
                   x={x + BAR_W / 2}
                   y={H - peakH - 4}
                   textAnchor="middle"
-                  fill="var(--muted)"
+                  fill="#2a2a2a"
                   fontSize="8"
-                  fontFamily="'Share Tech Mono', monospace"
+                  fontFamily="'DM Mono', monospace"
+                  fontWeight="300"
                 >
                   {d.peak}
                 </text>
-                {/* Day label */}
                 <text
                   x={x + BAR_W / 2}
                   y={H + 16}
                   textAnchor="middle"
-                  fill="var(--muted)"
+                  fill="#2a2a2a"
                   fontSize="9"
-                  fontFamily="'Share Tech Mono', monospace"
+                  fontFamily="'DM Sans', sans-serif"
+                  fontWeight="300"
                 >
                   {fmt(d.day)}
                 </text>
@@ -157,11 +146,10 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
             );
           })}
         </svg>
-
-        <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
+        <div style={{ display: "flex", gap: 14, marginTop: 2 }}>
           {[
-            { color: "rgba(0,200,240,0.18)", label: "peak" },
-            { color: "rgba(0,200,240,0.7)", label: "avg" },
+            { color: "#161616", label: "peak" },
+            { color: "rgba(61,220,132,0.5)", label: "avg" },
           ].map(({ color, label }) => (
             <div
               key={label}
@@ -170,7 +158,7 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
               <div
                 style={{
                   width: 12,
-                  height: 8,
+                  height: 6,
                   background: color,
                   borderRadius: 2,
                 }}
@@ -179,7 +167,9 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 9,
+                  fontWeight: 300,
                   color: "var(--muted)",
+                  letterSpacing: "0.06em",
                 }}
               >
                 {label}

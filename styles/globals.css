@@ -1,26 +1,26 @@
-@import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@300;400&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg: #060c12;
-  --bg2: #0b1520;
-  --bg3: #0f1e2e;
-  --border: #1b3a56;
-  --border2: #264d6e;
-  --accent: #00c8f0;
-  --accent2: #ff6b2b;
-  --green: #00e87a;
-  --yellow: #f5c400;
-  --text: #b8d8f0;
-  --muted: #4a7a9b;
-  --font-mono: "Share Tech Mono", monospace;
-  --font-ui: "Barlow Condensed", sans-serif;
-  --font-body: "Barlow", sans-serif;
+  --bg: #080808;
+  --bg2: #0d0d0d;
+  --bg3: #111111;
+  --line: #141414;
+  --line2: #1e1e1e;
+  --green: #3ddc84;
+  --text: #e0e0e0;
+  --muted: #333333;
+  --muted2: #222222;
+  --font-display: "Bebas Neue", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "DM Mono", monospace;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -35,57 +35,49 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Subtle grid background texture */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(0, 200, 240, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 200, 240, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Scanline overlay */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 3px,
-    rgba(0, 0, 0, 0.08) 3px,
-    rgba(0, 0, 0, 0.08) 4px
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
 #__next {
   position: relative;
-  z-index: 1;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border2);
+  background: var(--line2);
   border-radius: 2px;
 }
 
-/* Animations */
+/* Date input theming */
+input[type="date"] {
+  color-scheme: dark;
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 300;
+  padding: 7px 10px;
+  letter-spacing: 0.04em;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+input[type="date"]:hover {
+  border-color: var(--muted);
+}
+input[type="date"]:focus {
+  border-color: var(--green);
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
@@ -98,42 +90,31 @@ body::after {
     opacity: 1;
   }
   50% {
-    opacity: 0.3;
-  }
-}
-@keyframes pulse-ring {
-  0% {
-    transform: scale(1);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
+    opacity: 0.25;
   }
 }
 
 .fade-up {
-  animation: fadeUp 0.45s ease both;
+  animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.fade-up-1 {
-  animation-delay: 0.05s;
+.d1 {
+  animation-delay: 0.04s;
 }
-.fade-up-2 {
-  animation-delay: 0.1s;
+.d2 {
+  animation-delay: 0.09s;
 }
-.fade-up-3 {
-  animation-delay: 0.15s;
+.d3 {
+  animation-delay: 0.14s;
 }
-.fade-up-4 {
-  animation-delay: 0.2s;
+.d4 {
+  animation-delay: 0.19s;
 }
-.fade-up-5 {
-  animation-delay: 0.28s;
+.d5 {
+  animation-delay: 0.26s;
 }
-.fade-up-6 {
-  animation-delay: 0.36s;
+.d6 {
+  animation-delay: 0.33s;
 }
-
-.blink {
-  animation: blink 1.4s ease-in-out infinite;
+.d7 {
+  animation-delay: 0.4s;
 }
