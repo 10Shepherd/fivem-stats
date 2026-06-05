@@ -49,7 +49,7 @@ export default function Contact() {
     try {
       // Using FormSubmit.co — replace YOUR_EMAIL below with your actual email
       const res = await fetch(
-        "https://formsubmit.co/ajax/magadumparth5@gmail.com",
+        "https://formsubmit.co/ajax/8ae150ec513dd54e06d88e21631d6b7b",
         {
           method: "POST",
           headers: {
