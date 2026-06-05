@@ -42,7 +42,7 @@ export default function Privacy() {
   return (
     <>
       <Head>
-        <title>Privacy Policy — NoPixel Stats</title>
+        <title>Privacy Policy — FiveM Stats</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -77,7 +77,7 @@ export default function Privacy() {
             PRIVACY POLICY
           </h1>
           <P>
-            This Privacy Policy explains how NoPixel Stats ("we", "our", or "the
+            This Privacy Policy explains how FiveM Stats ("we", "our", or "the
             site") collects, uses, and protects information when you visit this
             website. We are an independent, community-run statistics tracker and
             are not affiliated with NoPixel Studios Pty Ltd.

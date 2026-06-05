@@ -49,7 +49,7 @@ export default async function handler(req, res) {
 
   <!-- Brand -->
   <text x="80" y="110" font-family="Arial Black, sans-serif" font-size="48" font-weight="900"
-    fill="white" letter-spacing="8">NOPIXEL</text>
+    fill="white" letter-spacing="8">FIVEM STATS</text>
   <rect x="80" y="122" width="140" height="1" fill="#202020"/>
   <text x="80" y="148" font-family="'Courier New', monospace" font-size="13" font-weight="300"
     fill="#4a4a4a" letter-spacing="4">STATS · LIVE TRACKER</text>
@@ -98,7 +98,7 @@ export default async function handler(req, res) {
     return res.status(200)
       .send(`<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
       <rect width="1200" height="630" fill="#060606"/>
-      <text x="80" y="200" font-family="Arial Black" font-size="72" fill="white" letter-spacing="8">NOPIXEL STATS</text>
+      <text x="80" y="200" font-family="Arial Black" font-size="72" fill="white" letter-spacing="8">FIVEM STATS</text>
       <text x="80" y="280" font-family="Courier New" font-size="20" fill="#4a4a4a" letter-spacing="4">LIVE SERVER STATISTICS</text>
     </svg>`);
   }

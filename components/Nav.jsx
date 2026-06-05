@@ -20,7 +20,7 @@ export default function Nav({ online, countdown, onSync }) {
     >
       <Link
         href="/"
-        aria-label="NoPixel Stats home"
+        aria-label="FiveM Stats home"
         style={{
           textDecoration: "none",
           display: "flex",
@@ -36,7 +36,7 @@ export default function Nav({ online, countdown, onSync }) {
             color: "#fff",
           }}
         >
-          NOPIXEL
+          FIVEM STATS
         </span>
         <span className="pill" aria-hidden="true">
           stats

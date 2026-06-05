@@ -18,6 +18,7 @@ import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 
 const SERVER_CODE = "3lamjz";
+const SITE_NAME = "FiveM Stats";
 const REFRESH_MS = 30_000;
 
 const toDateInput = (d) => d.toISOString().split("T")[0];
@@ -44,12 +45,12 @@ function ChartTooltip({ active, payload, label }) {
         boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
       }}
     >
-      <div style={{ color: "#444", marginBottom: 4, fontSize: 10 }}>
+      <div style={{ color: "#888", marginBottom: 4, fontSize: 10 }}>
         {label}
       </div>
       <div style={{ color: "#3ddc84", fontWeight: 400 }}>
         {payload[0].value}{" "}
-        <span style={{ color: "#444", fontWeight: 300 }}>players</span>
+        <span style={{ color: "#888", fontWeight: 300 }}>players</span>
       </div>
     </div>
   );
@@ -110,7 +111,6 @@ export default function Dashboard() {
   const [toDate, setToDate] = useState(toDateInput(today));
   const [rangeError, setRangeError] = useState("");
 
-  // Refs for stale-closure-safe interval
   const filterModeRef = useRef("preset");
   const activePresetRef = useRef(24);
   const fromDateRef = useRef(toDateInput(weekAgo));
@@ -235,19 +235,31 @@ export default function Dashboard() {
     count: r.count,
   }));
 
+  // FIX: --muted is now #888 (passes WCAG AA on #060606), use it for ALL secondary text
   const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
+  // LABEL style uses --muted (passes contrast), not --muted2
+  const LABEL = {
+    ...MONO,
+    fontSize: 9,
+    letterSpacing: "0.18em",
+    color: "var(--muted)",
+    textTransform: "uppercase",
+    marginBottom: 12,
+  };
 
   return (
     <>
       <Head>
-        <title>NoPixel Whitelisted — Stats</title>
+        <title>{SITE_NAME} — NoPixel Whitelisted</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta
           name="description"
           content="Live server statistics for NoPixel Whitelisted FiveM server — player count, uptime, peak hours and more."
         />
-        {/* OG / Social preview */}
-        <meta property="og:title" content="NoPixel Whitelisted — Live Stats" />
+        <meta
+          property="og:title"
+          content={`${SITE_NAME} — NoPixel Whitelisted`}
+        />
         <meta
           property="og:description"
           content={`${count} players online right now · ${fillPct}% capacity`}
@@ -257,7 +269,10 @@ export default function Dashboard() {
         <meta property="og:image:height" content="630" />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="NoPixel Whitelisted — Live Stats" />
+        <meta
+          name="twitter:title"
+          content={`${SITE_NAME} — NoPixel Whitelisted`}
+        />
         <meta
           name="twitter:description"
           content={`${count} players online right now`}
@@ -287,7 +302,9 @@ export default function Dashboard() {
               overflow: "hidden",
             }}
           >
+            {/* Decorative glow — hidden from AT */}
             <div
+              aria-hidden="true"
               style={{
                 position: "absolute",
                 top: -60,
@@ -300,13 +317,10 @@ export default function Dashboard() {
                 pointerEvents: "none",
               }}
             />
-            <div className="stat-label">players online</div>
-            <AnimatedNumber
-              value={loading ? "—" : count}
-              large
-              style={{ color: "var(--green)" }}
-            />
-            <div
+            {/* FIX: use <p> not <div> for stat label so it's semantic */}
+            <p style={LABEL}>players online</p>
+            <AnimatedNumber value={loading ? "—" : count} large />
+            <p
               style={{
                 ...MONO,
                 fontSize: 10,
@@ -316,8 +330,8 @@ export default function Dashboard() {
               }}
             >
               of {maxSlots} slots · {fillPct}% capacity
-            </div>
-            {/* Capacity bar */}
+            </p>
+            {/* Decorative capacity bar */}
             <div
               aria-hidden="true"
               style={{
@@ -332,7 +346,8 @@ export default function Dashboard() {
                 style={{
                   height: "100%",
                   width: `${fillPct}%`,
-                  background: `linear-gradient(90deg, var(--green), rgba(61,220,132,0.6))`,
+                  background:
+                    "linear-gradient(90deg, var(--green), rgba(61,220,132,0.6))",
                   borderRadius: 1,
                   transition: "width 1.4s cubic-bezier(0.22,1,0.36,1)",
                 }}
@@ -349,15 +364,15 @@ export default function Dashboard() {
               borderLeft: "1px solid var(--line)",
             }}
           >
-            <div className="stat-label">
+            <p style={LABEL}>
               {filterMode === "range"
                 ? "range peak"
                 : activePreset >= 24
                   ? `${activePreset / 24}d peak`
                   : `${activePreset}h peak`}
-            </div>
+            </p>
             <AnimatedNumber value={loading ? "—" : (summary.peak ?? "—")} />
-            <div
+            <p
               style={{
                 ...MONO,
                 fontSize: 10,
@@ -367,15 +382,14 @@ export default function Dashboard() {
               }}
             >
               highest recorded
-            </div>
-            {/* Mini sparkline indicator */}
+            </p>
             {summary.avg != null && summary.peak != null && (
-              <div style={{ marginTop: 12 }}>
+              <div aria-hidden="true" style={{ marginTop: 12 }}>
                 <div
                   style={{
                     ...MONO,
                     fontSize: 8,
-                    color: "var(--muted2)",
+                    color: "var(--muted)",
                     letterSpacing: "0.1em",
                     marginBottom: 4,
                   }}
@@ -412,11 +426,11 @@ export default function Dashboard() {
               borderLeft: "1px solid var(--line)",
             }}
           >
-            <div className="stat-label">all-time peak</div>
+            <p style={LABEL}>all-time peak</p>
             <AnimatedNumber
               value={loading ? "—" : peakStats.allTimePeak || "—"}
             />
-            <div
+            <p
               style={{
                 ...MONO,
                 fontSize: 10,
@@ -428,13 +442,12 @@ export default function Dashboard() {
               {peakStats.trackingSince
                 ? `since ${new Date(peakStats.trackingSince).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}`
                 : "since tracking began"}
-            </div>
+            </p>
           </div>
         </div>
 
         {/* ── Chart ── */}
         <div className="card fade-up d3" style={{ marginBottom: 12 }}>
-          {/* Header row */}
           <div
             className="filter-row"
             style={{
@@ -467,11 +480,18 @@ export default function Dashboard() {
               }}
             >
               {/* Preset tabs */}
-              <div style={{ display: "flex", gap: 3 }}>
+              <div
+                role="group"
+                aria-label="Time range presets"
+                style={{ display: "flex", gap: 3 }}
+              >
                 {PRESETS.map((p) => (
                   <button
                     key={p.hours}
                     onClick={() => selectPreset(p.hours)}
+                    aria-pressed={
+                      filterMode === "preset" && activePreset === p.hours
+                    }
                     className={`btn ${filterMode === "preset" && activePreset === p.hours ? "btn-active" : ""}`}
                     style={{ padding: "4px 10px", fontSize: 10 }}
                   >
@@ -481,6 +501,7 @@ export default function Dashboard() {
               </div>
 
               <div
+                aria-hidden="true"
                 style={{
                   width: 1,
                   height: 14,
@@ -489,7 +510,7 @@ export default function Dashboard() {
                 }}
               />
 
-              {/* Date range */}
+              {/* FIX: date inputs now have visible <label> elements */}
               <div
                 className="date-row"
                 style={{
@@ -499,42 +520,93 @@ export default function Dashboard() {
                   flexWrap: "wrap",
                 }}
               >
-                <input
-                  type="date"
-                  value={fromDate}
-                  max={toDate}
-                  onChange={(e) => {
-                    setFromDate(e.target.value);
-                    setRangeError("");
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 3 }}
+                >
+                  <label
+                    htmlFor="date-from"
+                    style={{
+                      ...MONO,
+                      fontSize: 8,
+                      letterSpacing: "0.12em",
+                      color: "var(--muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    From
+                  </label>
+                  <input
+                    id="date-from"
+                    type="date"
+                    value={fromDate}
+                    max={toDate}
+                    aria-label="Filter start date"
+                    onChange={(e) => {
+                      setFromDate(e.target.value);
+                      setRangeError("");
+                    }}
+                  />
+                </div>
+
+                <span
+                  aria-hidden="true"
+                  style={{
+                    ...MONO,
+                    fontSize: 10,
+                    color: "var(--muted)",
+                    marginTop: 14,
                   }}
-                />
-                <span style={{ ...MONO, fontSize: 10, color: "var(--muted2)" }}>
+                >
                   →
                 </span>
-                <input
-                  type="date"
-                  value={toDate}
-                  min={fromDate}
-                  max={toDateInput(new Date())}
-                  onChange={(e) => {
-                    setToDate(e.target.value);
-                    setRangeError("");
-                  }}
-                />
+
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 3 }}
+                >
+                  <label
+                    htmlFor="date-to"
+                    style={{
+                      ...MONO,
+                      fontSize: 8,
+                      letterSpacing: "0.12em",
+                      color: "var(--muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    To
+                  </label>
+                  <input
+                    id="date-to"
+                    type="date"
+                    value={toDate}
+                    min={fromDate}
+                    max={toDateInput(new Date())}
+                    aria-label="Filter end date"
+                    onChange={(e) => {
+                      setToDate(e.target.value);
+                      setRangeError("");
+                    }}
+                  />
+                </div>
+
                 <button
                   onClick={applyDateRange}
+                  aria-label="Apply date range filter"
                   className={`btn ${filterMode === "range" ? "btn-green" : ""}`}
-                  style={{ padding: "5px 12px", fontSize: 10 }}
+                  style={{ padding: "5px 12px", fontSize: 10, marginTop: 16 }}
                 >
                   apply
                 </button>
+
                 {rangeError && (
                   <span
+                    role="alert"
                     style={{
                       ...MONO,
                       fontSize: 10,
                       color: "var(--red)",
                       letterSpacing: "0.04em",
+                      marginTop: 16,
                     }}
                   >
                     {rangeError}
@@ -557,7 +629,7 @@ export default function Dashboard() {
                   gap: 8,
                 }}
               >
-                <div
+                <p
                   style={{
                     ...MONO,
                     fontSize: 11,
@@ -566,18 +638,18 @@ export default function Dashboard() {
                   }}
                 >
                   {loading ? "loading..." : "no data for this range"}
-                </div>
+                </p>
                 {!loading && (
-                  <div
+                  <p
                     style={{
                       ...MONO,
                       fontSize: 9,
-                      color: "var(--muted2)",
+                      color: "var(--muted)",
                       letterSpacing: "0.08em",
                     }}
                   >
                     data accumulates over time via cron
-                  </div>
+                  </p>
                 )}
               </div>
             ) : (
@@ -598,24 +670,24 @@ export default function Dashboard() {
                   </defs>
                   <CartesianGrid
                     strokeDasharray="1 5"
-                    stroke="#141414"
+                    stroke="#1a1a1a"
                     vertical={false}
                   />
                   <XAxis
                     dataKey="t"
                     tick={{
-                      fill: "var(--muted2)",
+                      fill: "#888888",
                       fontSize: 9,
                       fontFamily: "'DM Mono',monospace",
                       fontWeight: 300,
                     }}
                     tickLine={false}
-                    axisLine={{ stroke: "#161616" }}
+                    axisLine={{ stroke: "#1a1a1a" }}
                     interval="preserveStartEnd"
                   />
                   <YAxis
                     tick={{
-                      fill: "var(--muted2)",
+                      fill: "#888888",
                       fontSize: 9,
                       fontFamily: "'DM Mono',monospace",
                       fontWeight: 300,
@@ -655,7 +727,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Status strip */}
+          {/* Status strip — FIX: label text now uses --muted (#888) not --muted2 */}
           <div
             className="status-bar"
             style={{
@@ -682,12 +754,13 @@ export default function Dashboard() {
               { label: "capacity", value: `${maxSlots} slots` },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flexShrink: 0 }}>
+                {/* FIX: was color: '#222' / --muted2 which failed contrast — now --muted (#888) */}
                 <div
                   style={{
                     ...MONO,
                     fontSize: 8,
                     letterSpacing: "0.14em",
-                    color: "var(--muted2)",
+                    color: "var(--muted)",
                     textTransform: "uppercase",
                     marginBottom: 3,
                   }}
@@ -698,7 +771,7 @@ export default function Dashboard() {
                   style={{
                     ...MONO,
                     fontSize: 11,
-                    color: color || "var(--muted)",
+                    color: color || "var(--text)",
                     letterSpacing: "0.04em",
                   }}
                 >
@@ -712,13 +785,13 @@ export default function Dashboard() {
         {/* ── Peak insights ── */}
         <PeakSummary peakStats={peakStats} summary={summary} />
 
-        {/* ── Bottom: heatmap + daily bars + uptime ── */}
+        {/* ── Bottom: heatmap + daily bars ── */}
         <div className="bottom-grid" style={{ marginBottom: 12 }}>
           <HourlyHeatmap hourly={peakStats.hourly} />
           <DailyPeakBar daily={peakStats.daily} maxSlots={maxSlots} />
         </div>
 
-        {/* ── Uptime tracker — full width ── */}
+        {/* ── Uptime tracker ── */}
         <UptimeTracker uptime={uptime} />
 
         <Footer />

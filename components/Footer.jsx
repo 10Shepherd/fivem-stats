@@ -32,7 +32,7 @@ export default function Footer() {
               color: "var(--muted)",
             }}
           >
-            NOPIXEL STATS
+            FIVEM STATS
           </span>
           <span
             aria-hidden="true"
@@ -48,7 +48,7 @@ export default function Footer() {
               letterSpacing: "0.08em",
             }}
           >
-            not affiliated with nopixel studios
+            not affiliated with nopixel studios · independent tracker
           </span>
         </div>
 

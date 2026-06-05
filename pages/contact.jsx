@@ -110,7 +110,7 @@ export default function Contact() {
   return (
     <>
       <Head>
-        <title>Contact — NoPixel Stats</title>
+        <title>Contact — FiveM Stats</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -216,8 +216,11 @@ export default function Contact() {
               }}
             >
               <div>
-                <label style={labelStyle}>Name</label>
+                <label htmlFor="contact-name" style={labelStyle}>
+                  Name
+                </label>
                 <input
+                  id="contact-name"
                   type="text"
                   placeholder="your name"
                   value={form.name}
@@ -234,11 +237,18 @@ export default function Contact() {
                     e.target.style.background = "var(--bg3)";
                   }}
                 />
-                {errors.name && <div style={errStyle}>{errors.name}</div>}
+                {errors.name && (
+                  <div role="alert" style={errStyle}>
+                    {errors.name}
+                  </div>
+                )}
               </div>
               <div>
-                <label style={labelStyle}>Email</label>
+                <label htmlFor="contact-email" style={labelStyle}>
+                  Email
+                </label>
                 <input
+                  id="contact-email"
                   type="email"
                   placeholder="your@email.com"
                   value={form.email}
@@ -255,14 +265,21 @@ export default function Contact() {
                     e.target.style.background = "var(--bg3)";
                   }}
                 />
-                {errors.email && <div style={errStyle}>{errors.email}</div>}
+                {errors.email && (
+                  <div role="alert" style={errStyle}>
+                    {errors.email}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Topic */}
             <div>
-              <label style={labelStyle}>Topic</label>
+              <label htmlFor="contact-topic" style={labelStyle}>
+                Topic
+              </label>
               <select
+                id="contact-topic"
                 value={form.topic}
                 onChange={(e) => set("topic", e.target.value)}
                 style={{
@@ -300,8 +317,11 @@ export default function Contact() {
 
             {/* Message */}
             <div>
-              <label style={labelStyle}>Message</label>
+              <label htmlFor="contact-message" style={labelStyle}>
+                Message
+              </label>
               <textarea
+                id="contact-message"
                 rows={5}
                 placeholder="describe your question or issue in detail..."
                 value={form.message}
@@ -331,11 +351,13 @@ export default function Contact() {
                 }}
               >
                 {errors.message ? (
-                  <div style={errStyle}>{errors.message}</div>
+                  <div role="alert" style={errStyle}>
+                    {errors.message}
+                  </div>
                 ) : (
                   <div />
                 )}
-                <span style={{ ...MONO, fontSize: 9, color: "var(--muted2)" }}>
+                <span style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
                   {form.message.length} chars
                 </span>
               </div>

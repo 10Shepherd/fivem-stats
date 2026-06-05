@@ -42,7 +42,7 @@ export default function Terms() {
   return (
     <>
       <Head>
-        <title>Terms & Conditions — NoPixel Stats</title>
+        <title>Terms & Conditions — FiveM Stats</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -77,7 +77,7 @@ export default function Terms() {
             TERMS & CONDITIONS
           </h1>
           <P>
-            By accessing or using NoPixel Stats ("the site"), you agree to be
+            By accessing or using FiveM Stats ("the site"), you agree to be
             bound by these Terms and Conditions. If you do not agree, please do
             not use the site. These terms apply to all visitors and users of the
             website.
@@ -91,9 +91,9 @@ export default function Terms() {
         <div className="fade-up d2">
           <Section title="ABOUT THIS SITE">
             <P>
-              NoPixel Stats is an independent, community-built tool that
-              displays publicly available server statistics for the NoPixel
-              FiveM server. This site is{" "}
+              FiveM Stats is an independent, community-built tool that displays
+              publicly available server statistics for the NoPixel FiveM server.
+              This site is{" "}
               <strong style={{ color: "var(--text)", fontWeight: 500 }}>
                 not affiliated with, endorsed by, or connected to NoPixel
                 Studios Pty Ltd
@@ -155,7 +155,7 @@ export default function Terms() {
 
           <Section title="INTELLECTUAL PROPERTY">
             <P>
-              The source code, design, and content of NoPixel Stats (excluding
+              The source code, design, and content of FiveM Stats (excluding
               third-party trademarks and API data) are the property of the
               site's creator. You may not copy, reproduce, or redistribute the
               site's design or codebase without express permission. The NoPixel
@@ -175,7 +175,7 @@ export default function Terms() {
 
           <Section title="LIMITATION OF LIABILITY">
             <P>
-              To the fullest extent permitted by law, NoPixel Stats and its
+              To the fullest extent permitted by law, FiveM Stats and its
               creator shall not be liable for any indirect, incidental, special,
               or consequential damages arising from your use of, or inability to
               use, this site or the data it presents.
