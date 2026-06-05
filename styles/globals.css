@@ -14,8 +14,8 @@
   --green2: rgba(61, 220, 132, 0.12);
   --red: #e05555;
   --text: #e4e4e4;
-  --muted: #4a4a4a;
-  --muted2: #2a2a2a;
+  --muted: #888888; /* was #4a4a4a — too dark, fails WCAG AA */
+  --muted2: #555555; /* was #2a2a2a — too dark, fails WCAG AA */
   --font-display: "Bebas Neue", sans-serif;
   --font-body: "DM Sans", sans-serif;
   --font-mono: "DM Mono", monospace;
@@ -314,6 +314,9 @@ input[type="date"]:focus {
   .bottom-grid {
     grid-template-columns: 1fr;
   }
+  .peak-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
 }
 @media (max-width: 600px) {
   .hero-grid {
@@ -341,5 +344,8 @@ input[type="date"]:focus {
   }
   .hero-cell {
     padding: 22px 18px !important;
+  }
+  .peak-grid {
+    grid-template-columns: 1fr 1fr !important;
   }
 }

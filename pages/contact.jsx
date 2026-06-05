@@ -61,7 +61,7 @@ export default function Contact() {
             email: form.email,
             topic: form.topic,
             message: form.message,
-            _subject: `[Fivem Stats] ${form.topic}`,
+            _subject: `[NoPixel Stats] ${form.topic}`,
           }),
         },
       );
@@ -110,7 +110,7 @@ export default function Contact() {
   return (
     <>
       <Head>
-        <title>Contact — Fivem Stats</title>
+        <title>Contact — NoPixel Stats</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -286,7 +286,7 @@ export default function Contact() {
                   e.target.style.background = "var(--bg3)";
                 }}
               >
-                <option value="" disabled>
+                <option value="" disabled hidden>
                   select a topic
                 </option>
                 {TOPICS.map((t) => (

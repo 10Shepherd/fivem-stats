@@ -5,6 +5,7 @@ const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
 export default function Footer() {
   return (
     <footer
+      aria-label="Site footer"
       style={{
         borderTop: "1px solid var(--line)",
         padding: "24px 28px 32px",
@@ -22,24 +23,28 @@ export default function Footer() {
           flexWrap: "wrap",
         }}
       >
-        {/* Left — brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span
             style={{
               fontFamily: "var(--font-display)",
               fontSize: 14,
               letterSpacing: "0.14em",
-              color: "var(--line3)",
+              color: "var(--muted)",
             }}
           >
-            Fivem STATS
+            NOPIXEL STATS
           </span>
-          <span style={{ ...MONO, fontSize: 9, color: "var(--line3)" }}>·</span>
+          <span
+            aria-hidden="true"
+            style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}
+          >
+            ·
+          </span>
           <span
             style={{
               ...MONO,
               fontSize: 9,
-              color: "var(--line3)",
+              color: "var(--muted)",
               letterSpacing: "0.08em",
             }}
           >
@@ -47,8 +52,8 @@ export default function Footer() {
           </span>
         </div>
 
-        {/* Right — links */}
-        <div
+        <nav
+          aria-label="Legal and contact links"
           style={{
             display: "flex",
             alignItems: "center",
@@ -82,7 +87,7 @@ export default function Footer() {
               {label}
             </Link>
           ))}
-        </div>
+        </nav>
       </div>
     </footer>
   );

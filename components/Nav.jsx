@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export default function Nav({ online, countdown, onSync }) {
   return (
     <nav
+      aria-label="Main navigation"
       style={{
         display: "flex",
         alignItems: "center",
@@ -20,6 +20,7 @@ export default function Nav({ online, countdown, onSync }) {
     >
       <Link
         href="/"
+        aria-label="NoPixel Stats home"
         style={{
           textDecoration: "none",
           display: "flex",
@@ -37,17 +38,26 @@ export default function Nav({ online, countdown, onSync }) {
         >
           NOPIXEL
         </span>
-        <span className="pill">stats</span>
+        <span className="pill" aria-hidden="true">
+          stats
+        </span>
       </Link>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div
+        style={{ display: "flex", alignItems: "center", gap: 12 }}
+        role="status"
+        aria-live="polite"
+      >
         {online != null && (
           <>
+            {/* Status pill — aria-label conveys meaning, decorative dot is hidden */}
             <div
               className={`pill ${online ? "pill-green" : ""}`}
               style={{ gap: 6 }}
+              aria-label={`Server is ${online ? "online" : "offline"}`}
             >
               <div
+                aria-hidden="true"
                 style={{
                   width: 5,
                   height: 5,
@@ -59,10 +69,12 @@ export default function Nav({ online, countdown, onSync }) {
                   flexShrink: 0,
                 }}
               />
-              {online ? "online" : "offline"}
+              <span aria-hidden="true">{online ? "online" : "offline"}</span>
             </div>
+
             {countdown != null && (
               <span
+                aria-label={`Next sync in ${countdown} seconds`}
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontWeight: 300,
@@ -74,8 +86,13 @@ export default function Nav({ online, countdown, onSync }) {
                 ↻ {countdown}s
               </span>
             )}
+
             {onSync && (
-              <button className="btn" onClick={onSync}>
+              <button
+                className="btn"
+                onClick={onSync}
+                aria-label="Sync latest server data"
+              >
                 sync
               </button>
             )}

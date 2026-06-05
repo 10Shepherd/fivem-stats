@@ -12,6 +12,8 @@ import {
 } from "recharts";
 import HourlyHeatmap from "../components/HourlyHeatmap";
 import DailyPeakBar from "../components/DailyPeakBar";
+import UptimeTracker from "../components/UptimeTracker";
+import PeakSummary from "../components/PeakSummary";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 
@@ -98,6 +100,7 @@ export default function Dashboard() {
     hourly: [],
     allTimePeak: 0,
   });
+  const [uptime, setUptime] = useState({});
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState(null);
   const [countdown, setCountdown] = useState(30);
@@ -150,13 +153,25 @@ export default function Dashboard() {
       if (!d.error) setPeakStats(d);
     } catch {}
   };
+  const fetchUptime = async () => {
+    try {
+      const r = await fetch("/api/uptime?days=7");
+      const d = await r.json();
+      if (!d.error) setUptime(d);
+    } catch {}
+  };
 
   const refreshAll = useCallback(async () => {
     const histOpts =
       filterModeRef.current === "range"
         ? { from: fromDateRef.current, to: toDateRef.current }
         : { hours: activePresetRef.current };
-    await Promise.all([fetchLive(), fetchHistory(histOpts), fetchPeakStats()]);
+    await Promise.all([
+      fetchLive(),
+      fetchHistory(histOpts),
+      fetchPeakStats(),
+      fetchUptime(),
+    ]);
     setLastSync(new Date());
     setLoading(false);
     setCountdown(Math.round(REFRESH_MS / 1000));
@@ -229,8 +244,25 @@ export default function Dashboard() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta
           name="description"
-          content="Live server statistics for NoPixel Whitelisted"
+          content="Live server statistics for NoPixel Whitelisted FiveM server — player count, uptime, peak hours and more."
         />
+        {/* OG / Social preview */}
+        <meta property="og:title" content="NoPixel Whitelisted — Live Stats" />
+        <meta
+          property="og:description"
+          content={`${count} players online right now · ${fillPct}% capacity`}
+        />
+        <meta property="og:image" content="/api/og" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="NoPixel Whitelisted — Live Stats" />
+        <meta
+          name="twitter:description"
+          content={`${count} players online right now`}
+        />
+        <meta name="twitter:image" content="/api/og" />
       </Head>
 
       <Nav
@@ -255,7 +287,6 @@ export default function Dashboard() {
               overflow: "hidden",
             }}
           >
-            {/* Subtle green glow in corner */}
             <div
               style={{
                 position: "absolute",
@@ -288,6 +319,7 @@ export default function Dashboard() {
             </div>
             {/* Capacity bar */}
             <div
+              aria-hidden="true"
               style={{
                 marginTop: 12,
                 height: 2,
@@ -572,7 +604,7 @@ export default function Dashboard() {
                   <XAxis
                     dataKey="t"
                     tick={{
-                      fill: "#2a2a2a",
+                      fill: "var(--muted2)",
                       fontSize: 9,
                       fontFamily: "'DM Mono',monospace",
                       fontWeight: 300,
@@ -583,7 +615,7 @@ export default function Dashboard() {
                   />
                   <YAxis
                     tick={{
-                      fill: "#2a2a2a",
+                      fill: "var(--muted2)",
                       fontSize: 9,
                       fontFamily: "'DM Mono',monospace",
                       fontWeight: 300,
@@ -655,7 +687,7 @@ export default function Dashboard() {
                     ...MONO,
                     fontSize: 8,
                     letterSpacing: "0.14em",
-                    color: "#1e1e1e",
+                    color: "var(--muted2)",
                     textTransform: "uppercase",
                     marginBottom: 3,
                   }}
@@ -677,11 +709,17 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Bottom: heatmap + daily bars ── */}
-        <div className="bottom-grid">
+        {/* ── Peak insights ── */}
+        <PeakSummary peakStats={peakStats} summary={summary} />
+
+        {/* ── Bottom: heatmap + daily bars + uptime ── */}
+        <div className="bottom-grid" style={{ marginBottom: 12 }}>
           <HourlyHeatmap hourly={peakStats.hourly} />
           <DailyPeakBar daily={peakStats.daily} maxSlots={maxSlots} />
         </div>
+
+        {/* ── Uptime tracker — full width ── */}
+        <UptimeTracker uptime={uptime} />
 
         <Footer />
       </main>

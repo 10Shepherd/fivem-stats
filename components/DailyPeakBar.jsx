@@ -117,7 +117,7 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
               fontFamily: "var(--font-mono)",
               fontSize: 9,
               fontWeight: 300,
-              color: "var(--muted2)",
+              color: "var(--muted)",
               letterSpacing: "0.05em",
             }}
           >
@@ -202,7 +202,7 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
                   x={x + BAR_W / 2}
                   y={PAD_TOP + H + 18}
                   textAnchor="middle"
-                  fill="#333"
+                  fill="#777777"
                   fontSize="9"
                   fontFamily="'DM Sans', sans-serif"
                   fontWeight="400"

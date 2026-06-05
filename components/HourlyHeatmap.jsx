@@ -72,7 +72,7 @@ export default function HourlyHeatmap({ hourly = [] }) {
                   fontFamily: "var(--font-mono)",
                   fontSize: 8,
                   fontWeight: 300,
-                  color: "var(--muted2)",
+                  color: "var(--muted)",
                   flexShrink: 0,
                   letterSpacing: "0.04em",
                 }}
@@ -124,7 +124,7 @@ export default function HourlyHeatmap({ hourly = [] }) {
                 fontFamily: "var(--font-mono)",
                 fontSize: 8,
                 fontWeight: 300,
-                color: "var(--muted2)",
+                color: "var(--muted)",
                 marginRight: 2,
               }}
             >
@@ -146,7 +146,7 @@ export default function HourlyHeatmap({ hourly = [] }) {
                 fontFamily: "var(--font-mono)",
                 fontSize: 8,
                 fontWeight: 300,
-                color: "var(--muted2)",
+                color: "var(--muted)",
                 marginLeft: 2,
               }}
             >
