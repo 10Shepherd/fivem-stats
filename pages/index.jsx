@@ -16,46 +16,64 @@ import DailyPeakBar from "../components/DailyPeakBar";
 const SERVER_CODE = "3lamjz";
 const REFRESH_MS = 30_000;
 
-function toDateInput(d) {
-  return d.toISOString().split("T")[0];
-}
+const toDateInput = (d) => d.toISOString().split("T")[0];
 
-function fmtTime(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-function fmtAge(s) {
+const fmtAge = (s) => {
   if (s == null) return "—";
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.round(s / 60)}m ago`;
   return `${Math.round(s / 3600)}h ago`;
-}
+};
 
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
     <div
       style={{
-        background: "#0d0d0d",
-        border: "1px solid #1e1e1e",
-        borderRadius: 8,
-        padding: "8px 14px",
+        background: "#0c0c0c",
+        border: "1px solid #202020",
+        borderRadius: 10,
+        padding: "9px 14px",
         fontFamily: "'DM Mono', monospace",
         fontSize: 11,
         fontWeight: 300,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
       }}
     >
-      <div style={{ color: "#444", marginBottom: 4, letterSpacing: "0.04em" }}>
+      <div style={{ color: "#444", marginBottom: 4, fontSize: 10 }}>
         {label}
       </div>
-      <div style={{ color: "#3ddc84", letterSpacing: "0.04em" }}>
-        {payload[0].value} players
+      <div style={{ color: "#3ddc84", fontWeight: 400 }}>
+        {payload[0].value}{" "}
+        <span style={{ color: "#444", fontWeight: 300 }}>players</span>
       </div>
     </div>
+  );
+}
+
+function AnimatedNumber({ value, large }) {
+  const [key, setKey] = useState(0);
+  const prev = useRef(value);
+  useEffect(() => {
+    if (value !== prev.current) {
+      prev.current = value;
+      setKey((k) => k + 1);
+    }
+  }, [value]);
+  return (
+    <span
+      key={key}
+      style={{
+        display: "inline-block",
+        fontFamily: "var(--font-display)",
+        fontSize: large ? "clamp(60px, 10vw, 100px)" : "clamp(38px, 5vw, 62px)",
+        lineHeight: 0.85,
+        letterSpacing: "0.02em",
+        animation: "countUp 0.45s cubic-bezier(0.22,1,0.36,1) both",
+      }}
+    >
+      {value}
+    </span>
   );
 }
 
@@ -65,34 +83,6 @@ const PRESETS = [
   { label: "24H", hours: 24 },
   { label: "7D", hours: 168 },
 ];
-
-// Animated number component
-function AnimatedNumber({ value, style }) {
-  const [display, setDisplay] = useState(value);
-  const [animKey, setAnimKey] = useState(0);
-  const prev = useRef(value);
-
-  useEffect(() => {
-    if (value !== prev.current) {
-      prev.current = value;
-      setAnimKey((k) => k + 1);
-      setDisplay(value);
-    }
-  }, [value]);
-
-  return (
-    <span
-      key={animKey}
-      style={{
-        ...style,
-        display: "inline-block",
-        animation: "countUp 0.45s cubic-bezier(0.22,1,0.36,1) both",
-      }}
-    >
-      {display}
-    </span>
-  );
-}
 
 export default function Dashboard() {
   const today = new Date();
@@ -109,20 +99,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState(null);
   const [countdown, setCountdown] = useState(30);
-
-  // FIX: use refs for filter state so interval closure always sees latest values
   const [filterMode, setFilterMode] = useState("preset");
   const [activePreset, setActivePreset] = useState(24);
   const [fromDate, setFromDate] = useState(toDateInput(weekAgo));
   const [toDate, setToDate] = useState(toDateInput(today));
   const [rangeError, setRangeError] = useState("");
 
+  // Refs for stale-closure-safe interval
   const filterModeRef = useRef("preset");
   const activePresetRef = useRef(24);
   const fromDateRef = useRef(toDateInput(weekAgo));
   const toDateRef = useRef(toDateInput(today));
-
-  // Keep refs in sync
   useEffect(() => {
     filterModeRef.current = filterMode;
   }, [filterMode]);
@@ -143,7 +130,6 @@ export default function Dashboard() {
       setLive(d);
     } catch {}
   };
-
   const fetchHistory = async (opts = {}) => {
     try {
       const url =
@@ -155,7 +141,6 @@ export default function Dashboard() {
       if (!d.error) setHistory(d);
     } catch {}
   };
-
   const fetchPeakStats = async () => {
     try {
       const r = await fetch("/api/peakstats");
@@ -164,7 +149,6 @@ export default function Dashboard() {
     } catch {}
   };
 
-  // FIX: reads from refs, safe to call from interval
   const refreshAll = useCallback(async () => {
     const histOpts =
       filterModeRef.current === "range"
@@ -173,23 +157,19 @@ export default function Dashboard() {
     await Promise.all([fetchLive(), fetchHistory(histOpts), fetchPeakStats()]);
     setLastSync(new Date());
     setLoading(false);
-    // FIX: reset countdown after each actual refresh
-    setCountdown(30);
-  }, []); // stable — no deps needed since we use refs
+    setCountdown(Math.round(REFRESH_MS / 1000));
+  }, []);
 
-  // Mount: initial fetch + set up interval
   useEffect(() => {
     refreshAll();
     const iv = setInterval(refreshAll, REFRESH_MS);
     return () => clearInterval(iv);
   }, [refreshAll]);
 
-  // Re-fetch chart when preset changes
   useEffect(() => {
     if (filterMode === "preset") fetchHistory({ hours: activePreset });
   }, [activePreset]); // eslint-disable-line
 
-  // FIX: countdown tied to REFRESH_MS, resets when lastSync changes
   useEffect(() => {
     setCountdown(Math.round(REFRESH_MS / 1000));
     const tick = setInterval(
@@ -205,11 +185,10 @@ export default function Dashboard() {
       return;
     }
     if (new Date(fromDate) > new Date(toDate)) {
-      setRangeError("start must be before end");
+      setRangeError("start before end");
       return;
     }
-    const diffDays = (new Date(toDate) - new Date(fromDate)) / 86400000;
-    if (diffDays > 90) {
+    if ((new Date(toDate) - new Date(fromDate)) / 86400000 > 90) {
       setRangeError("max 90 days");
       return;
     }
@@ -217,10 +196,9 @@ export default function Dashboard() {
     setFilterMode("range");
     fetchHistory({ from: fromDate, to: toDate });
   }
-
-  function selectPreset(hours) {
+  function selectPreset(h) {
     setFilterMode("preset");
-    setActivePreset(hours);
+    setActivePreset(h);
     setRangeError("");
   }
 
@@ -241,39 +219,6 @@ export default function Dashboard() {
   }));
 
   const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
-  const LABEL = {
-    ...MONO,
-    fontSize: 9,
-    letterSpacing: "0.18em",
-    color: "var(--muted)",
-    textTransform: "uppercase",
-    marginBottom: 14,
-  };
-
-  const TabBtn = ({ preset }) => {
-    const active = filterMode === "preset" && activePreset === preset.hours;
-    return (
-      <button
-        onClick={() => selectPreset(preset.hours)}
-        style={{
-          background: active ? "#fff" : "none",
-          border: `1px solid ${active ? "#fff" : "var(--line2)"}`,
-          color: active ? "#080808" : "var(--muted)",
-          fontFamily: "var(--font-mono)",
-          fontSize: 10,
-          fontWeight: 300,
-          letterSpacing: "0.08em",
-          padding: "4px 10px",
-          borderRadius: 100,
-          cursor: "pointer",
-          transition: "all 0.15s",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {preset.label}
-      </button>
-    );
-  };
 
   return (
     <>
@@ -288,19 +233,22 @@ export default function Dashboard() {
 
       {/* ── Nav ── */}
       <nav
-        className="nav-pad"
+        className="nav-wrap"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          padding: "16px 28px",
           borderBottom: "1px solid var(--line)",
-          background: "rgba(8,8,8,0.96)",
-          backdropFilter: "blur(12px)",
+          background: "rgba(6,6,6,0.92)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
           position: "sticky",
           top: 0,
           zIndex: 50,
         }}
       >
+        {/* Logo */}
         <div
           className="slide-in d1"
           style={{ display: "flex", alignItems: "center", gap: 10 }}
@@ -308,58 +256,41 @@ export default function Dashboard() {
           <span
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: 20,
-              letterSpacing: "0.12em",
+              fontSize: 19,
+              letterSpacing: "0.14em",
               color: "#fff",
             }}
           >
             NOPIXEL
           </span>
-          <span
-            style={{
-              ...MONO,
-              fontSize: 9,
-              color: "var(--muted)",
-              letterSpacing: "0.15em",
-              border: "1px solid var(--line2)",
-              borderRadius: 100,
-              padding: "3px 10px",
-            }}
-          >
-            stats
-          </span>
+          <span className="pill">stats</span>
         </div>
 
+        {/* Right side */}
         <div
-          className="nav-right fade-in d2"
-          style={{ display: "flex", alignItems: "center", gap: 14 }}
+          className="fade-in d2"
+          style={{ display: "flex", alignItems: "center", gap: 12 }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Status */}
+          <div
+            className={`pill ${online ? "pill-green" : ""}`}
+            style={{ gap: 6 }}
+          >
             <div
               style={{
-                width: 6,
-                height: 6,
+                width: 5,
+                height: 5,
                 borderRadius: "50%",
                 background: online ? "var(--green)" : "var(--red)",
                 animation: online
                   ? "pulseGreen 2s infinite"
                   : "blink 2.5s infinite",
+                flexShrink: 0,
               }}
             />
-            <span
-              style={{
-                ...MONO,
-                fontSize: 10,
-                color: "var(--muted)",
-                letterSpacing: "0.08em",
-              }}
-            >
-              <span style={{ display: "none" }} className="mobile-hide">
-                {online ? "online" : "offline"} ·{" "}
-              </span>
-              {SERVER_CODE}
-            </span>
+            {online ? "online" : "offline"}
           </div>
+
           <span
             style={{
               ...MONO,
@@ -368,58 +299,50 @@ export default function Dashboard() {
               letterSpacing: "0.06em",
             }}
           >
-            {lastSync ? `↻ ${countdown}s` : "..."}
+            {lastSync ? `↻ ${countdown}s` : "—"}
           </span>
-          <button
-            onClick={refreshAll}
-            style={{
-              background: "none",
-              border: "1px solid var(--line2)",
-              borderRadius: 100,
-              color: "var(--muted)",
-              ...MONO,
-              fontSize: 10,
-              letterSpacing: "0.1em",
-              padding: "6px 14px",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--green)";
-              e.currentTarget.style.color = "var(--green)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--line2)";
-              e.currentTarget.style.color = "var(--muted)";
-            }}
-          >
+
+          <button className="btn" onClick={refreshAll}>
             sync
           </button>
         </div>
       </nav>
 
-      <main className="main-pad" style={{ maxWidth: 1280, margin: "0 auto" }}>
-        {/* ── Hero stats ── */}
-        <div className="hero-grid fade-up d1" style={{ marginBottom: 16 }}>
-          {/* Live count */}
+      <main
+        className="main-wrap"
+        style={{ padding: "20px 28px 56px", maxWidth: 1300, margin: "0 auto" }}
+      >
+        {/* ── Hero: 3 stat boxes ── */}
+        <div className="hero-grid fade-up d1">
+          {/* BIG: live count */}
           <div
-            className="hero-main-cell"
+            className="hero-main hero-cell"
             style={{
               background: "var(--bg2)",
               padding: "32px 28px",
               position: "relative",
+              overflow: "hidden",
             }}
           >
-            <div style={LABEL}>players online</div>
+            {/* Subtle green glow in corner */}
+            <div
+              style={{
+                position: "absolute",
+                top: -60,
+                right: -60,
+                width: 160,
+                height: 160,
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(circle, rgba(61,220,132,0.07) 0%, transparent 70%)",
+                pointerEvents: "none",
+              }}
+            />
+            <div className="stat-label">players online</div>
             <AnimatedNumber
               value={loading ? "—" : count}
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "clamp(56px, 10vw, 96px)",
-                lineHeight: 0.85,
-                letterSpacing: "0.02em",
-                color: "var(--green)",
-              }}
+              large
+              style={{ color: "var(--green)" }}
             />
             <div
               style={{
@@ -435,7 +358,7 @@ export default function Dashboard() {
             {/* Capacity bar */}
             <div
               style={{
-                marginTop: 14,
+                marginTop: 12,
                 height: 2,
                 background: "var(--line2)",
                 borderRadius: 1,
@@ -446,10 +369,9 @@ export default function Dashboard() {
                 style={{
                   height: "100%",
                   width: `${fillPct}%`,
-                  background: "var(--green)",
+                  background: `linear-gradient(90deg, var(--green), rgba(61,220,132,0.6))`,
                   borderRadius: 1,
-                  transition: "width 1.2s cubic-bezier(0.22,1,0.36,1)",
-                  transformOrigin: "left",
+                  transition: "width 1.4s cubic-bezier(0.22,1,0.36,1)",
                 }}
               />
             </div>
@@ -457,29 +379,21 @@ export default function Dashboard() {
 
           {/* Period peak */}
           <div
+            className="hero-cell"
             style={{
               background: "var(--bg2)",
               padding: "28px 24px",
               borderLeft: "1px solid var(--line)",
             }}
           >
-            <div style={LABEL}>
+            <div className="stat-label">
               {filterMode === "range"
                 ? "range peak"
                 : activePreset >= 24
                   ? `${activePreset / 24}d peak`
                   : `${activePreset}h peak`}
             </div>
-            <AnimatedNumber
-              value={loading ? "—" : (summary.peak ?? "—")}
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "clamp(40px, 6vw, 60px)",
-                lineHeight: 0.85,
-                letterSpacing: "0.02em",
-                color: "#fff",
-              }}
-            />
+            <AnimatedNumber value={loading ? "—" : (summary.peak ?? "—")} />
             <div
               style={{
                 ...MONO,
@@ -491,26 +405,53 @@ export default function Dashboard() {
             >
               highest recorded
             </div>
+            {/* Mini sparkline indicator */}
+            {summary.avg != null && summary.peak != null && (
+              <div style={{ marginTop: 12 }}>
+                <div
+                  style={{
+                    ...MONO,
+                    fontSize: 8,
+                    color: "var(--muted2)",
+                    letterSpacing: "0.1em",
+                    marginBottom: 4,
+                  }}
+                >
+                  avg / peak
+                </div>
+                <div
+                  style={{
+                    height: 2,
+                    background: "var(--line2)",
+                    borderRadius: 1,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${Math.round((summary.avg / summary.peak) * 100)}%`,
+                      background: "var(--line3)",
+                      borderRadius: 1,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* All-time peak */}
           <div
+            className="hero-cell"
             style={{
               background: "var(--bg2)",
               padding: "28px 24px",
               borderLeft: "1px solid var(--line)",
             }}
           >
-            <div style={LABEL}>all-time peak</div>
+            <div className="stat-label">all-time peak</div>
             <AnimatedNumber
               value={loading ? "—" : peakStats.allTimePeak || "—"}
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "clamp(40px, 6vw, 60px)",
-                lineHeight: 0.85,
-                letterSpacing: "0.02em",
-                color: "#fff",
-              }}
             />
             <div
               style={{
@@ -522,39 +463,30 @@ export default function Dashboard() {
               }}
             >
               {peakStats.trackingSince
-                ? `since ${new Date(peakStats.trackingSince).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                ? `since ${new Date(peakStats.trackingSince).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}`
                 : "since tracking began"}
             </div>
           </div>
         </div>
 
         {/* ── Chart ── */}
-        <div
-          className="fade-up d3"
-          style={{
-            background: "var(--bg2)",
-            border: "1px solid var(--line)",
-            borderRadius: 12,
-            marginBottom: 16,
-            overflow: "hidden",
-          }}
-        >
-          {/* Chart header */}
+        <div className="card fade-up d3" style={{ marginBottom: 12 }}>
+          {/* Header row */}
           <div
-            className="chart-filter-row"
+            className="filter-row"
             style={{
               padding: "18px 20px 0",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 12,
+              gap: 10,
               flexWrap: "wrap",
             }}
           >
             <span
               style={{
                 fontFamily: "var(--font-display)",
-                fontSize: 16,
+                fontSize: 15,
                 letterSpacing: "0.1em",
                 color: "#fff",
                 flexShrink: 0,
@@ -574,14 +506,21 @@ export default function Dashboard() {
               {/* Preset tabs */}
               <div style={{ display: "flex", gap: 3 }}>
                 {PRESETS.map((p) => (
-                  <TabBtn key={p.hours} preset={p} />
+                  <button
+                    key={p.hours}
+                    onClick={() => selectPreset(p.hours)}
+                    className={`btn ${filterMode === "preset" && activePreset === p.hours ? "btn-active" : ""}`}
+                    style={{ padding: "4px 10px", fontSize: 10 }}
+                  >
+                    {p.label}
+                  </button>
                 ))}
               </div>
 
               <div
                 style={{
                   width: 1,
-                  height: 16,
+                  height: 14,
                   background: "var(--line2)",
                   flexShrink: 0,
                 }}
@@ -589,7 +528,7 @@ export default function Dashboard() {
 
               {/* Date range */}
               <div
-                className="date-picker-row"
+                className="date-row"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -605,9 +544,8 @@ export default function Dashboard() {
                     setFromDate(e.target.value);
                     setRangeError("");
                   }}
-                  style={{ width: 140 }}
                 />
-                <span style={{ ...MONO, fontSize: 10, color: "var(--muted)" }}>
+                <span style={{ ...MONO, fontSize: 10, color: "var(--muted2)" }}>
                   →
                 </span>
                 <input
@@ -619,37 +557,11 @@ export default function Dashboard() {
                     setToDate(e.target.value);
                     setRangeError("");
                   }}
-                  style={{ width: 140 }}
                 />
                 <button
                   onClick={applyDateRange}
-                  style={{
-                    background:
-                      filterMode === "range" ? "var(--green)" : "none",
-                    border: `1px solid ${filterMode === "range" ? "var(--green)" : "var(--line2)"}`,
-                    color: filterMode === "range" ? "#080808" : "var(--muted)",
-                    ...MONO,
-                    fontSize: 10,
-                    fontWeight: filterMode === "range" ? 400 : 300,
-                    letterSpacing: "0.08em",
-                    padding: "5px 12px",
-                    borderRadius: 100,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (filterMode !== "range") {
-                      e.currentTarget.style.borderColor = "var(--green)";
-                      e.currentTarget.style.color = "var(--green)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (filterMode !== "range") {
-                      e.currentTarget.style.borderColor = "var(--line2)";
-                      e.currentTarget.style.color = "var(--muted)";
-                    }
-                  }}
+                  className={`btn ${filterMode === "range" ? "btn-green" : ""}`}
+                  style={{ padding: "5px 12px", fontSize: 10 }}
                 >
                   apply
                 </button>
@@ -669,8 +581,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Chart body */}
-          <div style={{ height: 200, padding: "16px 8px 0" }}>
+          {/* Chart canvas */}
+          <div style={{ height: 210, padding: "14px 8px 0" }}>
             {chartData.length === 0 ? (
               <div
                 style={{
@@ -678,13 +590,32 @@ export default function Dashboard() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  ...MONO,
-                  fontSize: 10,
-                  color: "var(--muted)",
-                  letterSpacing: "0.1em",
+                  flexDirection: "column",
+                  gap: 8,
                 }}
               >
-                {loading ? "loading..." : "no data for this range"}
+                <div
+                  style={{
+                    ...MONO,
+                    fontSize: 11,
+                    color: "var(--muted)",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  {loading ? "loading..." : "no data for this range"}
+                </div>
+                {!loading && (
+                  <div
+                    style={{
+                      ...MONO,
+                      fontSize: 9,
+                      color: "var(--muted2)",
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    data accumulates over time via cron
+                  </div>
+                )}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -693,22 +624,18 @@ export default function Dashboard() {
                   margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient id="greenGrad" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3ddc84" stopOpacity={0.2} />
                       <stop
-                        offset="5%"
-                        stopColor="#3ddc84"
-                        stopOpacity={0.18}
-                      />
-                      <stop
-                        offset="95%"
+                        offset="100%"
                         stopColor="#3ddc84"
                         stopOpacity={0.01}
                       />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
-                    strokeDasharray="1 6"
-                    stroke="#161616"
+                    strokeDasharray="1 5"
+                    stroke="#141414"
                     vertical={false}
                   />
                   <XAxis
@@ -716,7 +643,7 @@ export default function Dashboard() {
                     tick={{
                       fill: "#2a2a2a",
                       fontSize: 9,
-                      fontFamily: "'DM Mono', monospace",
+                      fontFamily: "'DM Mono',monospace",
                       fontWeight: 300,
                     }}
                     tickLine={false}
@@ -727,29 +654,37 @@ export default function Dashboard() {
                     tick={{
                       fill: "#2a2a2a",
                       fontSize: 9,
-                      fontFamily: "'DM Mono', monospace",
+                      fontFamily: "'DM Mono',monospace",
                       fontWeight: 300,
                     }}
                     tickLine={false}
                     axisLine={false}
                     domain={[0, maxSlots]}
-                    width={24}
+                    width={26}
                   />
-                  <Tooltip content={<ChartTooltip />} />
+                  <Tooltip
+                    content={<ChartTooltip />}
+                    cursor={{ stroke: "rgba(61,220,132,0.15)", strokeWidth: 1 }}
+                  />
                   <ReferenceLine
                     y={maxSlots}
-                    stroke="rgba(61,220,132,0.08)"
-                    strokeDasharray="3 6"
+                    stroke="rgba(61,220,132,0.06)"
+                    strokeDasharray="4 6"
                   />
                   <Area
                     type="monotone"
                     dataKey="count"
                     stroke="#3ddc84"
                     strokeWidth={1.5}
-                    fill="url(#greenGrad)"
+                    fill="url(#grad)"
                     dot={false}
-                    activeDot={{ r: 3, fill: "#3ddc84", strokeWidth: 0 }}
-                    animationDuration={600}
+                    activeDot={{
+                      r: 4,
+                      fill: "#3ddc84",
+                      stroke: "rgba(61,220,132,0.3)",
+                      strokeWidth: 4,
+                    }}
+                    animationDuration={700}
                     animationEasing="ease-out"
                   />
                 </AreaChart>
@@ -757,13 +692,13 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Status bar */}
+          {/* Status strip */}
           <div
             className="status-bar"
             style={{
               display: "flex",
-              gap: 28,
-              padding: "12px 24px 16px",
+              gap: 24,
+              padding: "12px 22px 14px",
               borderTop: "1px solid var(--line)",
               marginTop: 8,
               overflowX: "auto",
@@ -775,20 +710,23 @@ export default function Dashboard() {
                 value: online ? "online" : "offline",
                 color: online ? "var(--green)" : "var(--red)",
               },
-              { label: "last update", value: fmtAge(live?.ageSeconds) },
-              { label: "data pts", value: summary.dataPoints ?? "—" },
-              { label: "avg", value: summary.avg ?? "—" },
-              { label: "max slots", value: maxSlots },
+              { label: "updated", value: fmtAge(live?.ageSeconds) },
+              { label: "points", value: summary.dataPoints ?? "—" },
+              {
+                label: "avg",
+                value: summary.avg != null ? `${summary.avg}` : "—",
+              },
+              { label: "capacity", value: `${maxSlots} slots` },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flexShrink: 0 }}>
                 <div
                   style={{
                     ...MONO,
                     fontSize: 8,
-                    letterSpacing: "0.16em",
-                    color: "#222",
+                    letterSpacing: "0.14em",
+                    color: "#1e1e1e",
                     textTransform: "uppercase",
-                    marginBottom: 4,
+                    marginBottom: 3,
                   }}
                 >
                   {label}
@@ -808,7 +746,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Bottom row ── */}
+        {/* ── Bottom: heatmap + daily bars ── */}
         <div className="bottom-grid">
           <HourlyHeatmap hourly={peakStats.hourly} />
           <DailyPeakBar daily={peakStats.daily} maxSlots={maxSlots} />
@@ -817,12 +755,12 @@ export default function Dashboard() {
         {/* ── Footer ── */}
         <div
           style={{
-            marginTop: 36,
-            paddingTop: 18,
+            marginTop: 32,
+            paddingTop: 16,
             borderTop: "1px solid var(--line)",
             display: "flex",
             justifyContent: "space-between",
-            gap: 16,
+            gap: 12,
             flexWrap: "wrap",
           }}
         >
@@ -830,18 +768,18 @@ export default function Dashboard() {
             style={{
               ...MONO,
               fontSize: 9,
-              color: "#1e1e1e",
+              color: "#1c1c1c",
               letterSpacing: "0.08em",
             }}
           >
-            data via cfx.re public api · polls every 30s · not affiliated with
-            NoPixel
+            via cfx.re public api · polls every 30s · not affiliated with
+            nopixel
           </span>
           <span
             style={{
               ...MONO,
               fontSize: 9,
-              color: "#1e1e1e",
+              color: "#1c1c1c",
               letterSpacing: "0.08em",
             }}
           >
