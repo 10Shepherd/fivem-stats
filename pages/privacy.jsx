@@ -48,7 +48,10 @@ export default function Privacy() {
 
       <Nav />
 
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "48px 28px 0" }}>
+      <main
+        id="main-content"
+        style={{ maxWidth: 760, margin: "0 auto", padding: "48px 28px 0" }}
+      >
         {/* Header */}
         <div className="fade-up d1" style={{ marginBottom: 48 }}>
           <div
@@ -60,7 +63,7 @@ export default function Privacy() {
             }}
           >
             <span className="pill">Legal</span>
-            <span style={{ ...MONO, fontSize: 9, color: "var(--muted2)" }}>
+            <span style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
               Last updated: June 2026
             </span>
           </div>

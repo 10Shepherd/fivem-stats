@@ -14,8 +14,8 @@
   --green2: rgba(61, 220, 132, 0.12);
   --red: #e05555;
   --text: #e4e4e4;
-  --muted: #888888; /* was #4a4a4a — too dark, fails WCAG AA */
-  --muted2: #555555; /* was #2a2a2a — too dark, fails WCAG AA */
+  --muted: #888888; /* passes WCAG AA on #060606 (~4.6:1) */
+  --muted2: #707070; /* passes WCAG AA on #060606 (~3.9:1 — use for large text only) */
   --font-display: "Bebas Neue", sans-serif;
   --font-body: "DM Sans", sans-serif;
   --font-mono: "DM Mono", monospace;

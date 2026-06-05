@@ -287,6 +287,7 @@ export default function Dashboard() {
       />
 
       <main
+        id="main-content"
         className="main-wrap"
         style={{ padding: "20px 28px 56px", maxWidth: 1300, margin: "0 auto" }}
       >

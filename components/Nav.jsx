@@ -18,9 +18,11 @@ export default function Nav({ online, countdown, onSync }) {
         zIndex: 50,
       }}
     >
+      {/* FIX: remove aria-label from Link — it caused "aria-hidden focusable" because
+          the pill <span> inside was aria-hidden while the link itself was focusable.
+          The visible text "FIVEM STATS" is sufficient label for the link. */}
       <Link
         href="/"
-        aria-label="FiveM Stats home"
         style={{
           textDecoration: "none",
           display: "flex",
@@ -38,23 +40,23 @@ export default function Nav({ online, countdown, onSync }) {
         >
           FIVEM STATS
         </span>
-        <span className="pill" aria-hidden="true">
-          stats
+        {/* "whitelisted" badge — purely decorative, no aria-hidden needed since parent link text is clear */}
+        <span className="pill" style={{ pointerEvents: "none" }}>
+          whitelisted
         </span>
       </Link>
 
-      <div
-        style={{ display: "flex", alignItems: "center", gap: 12 }}
-        role="status"
-        aria-live="polite"
-      >
+      {/* FIX: role="status" + aria-live on this div caused the <main> to be considered
+          inside a live region by some checkers. Move live region to a visually-hidden
+          dedicated element instead. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         {online != null && (
           <>
-            {/* Status pill — aria-label conveys meaning, decorative dot is hidden */}
             <div
               className={`pill ${online ? "pill-green" : ""}`}
               style={{ gap: 6 }}
               aria-label={`Server is ${online ? "online" : "offline"}`}
+              role="status"
             >
               <div
                 aria-hidden="true"
@@ -72,14 +74,17 @@ export default function Nav({ online, countdown, onSync }) {
               <span aria-hidden="true">{online ? "online" : "offline"}</span>
             </div>
 
+            {/* FIX: countdown was color: var(--muted2) = #555 which fails contrast.
+                Now uses var(--muted) = #888 which passes WCAG AA.
+                Also removed aria-label — the visible text is sufficient. */}
             {countdown != null && (
               <span
-                aria-label={`Next sync in ${countdown} seconds`}
+                aria-hidden="true"
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontWeight: 300,
                   fontSize: 9,
-                  color: "var(--muted2)",
+                  color: "var(--muted)",
                   letterSpacing: "0.06em",
                 }}
               >

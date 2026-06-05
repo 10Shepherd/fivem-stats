@@ -116,7 +116,10 @@ export default function Contact() {
 
       <Nav />
 
-      <main style={{ maxWidth: 640, margin: "0 auto", padding: "48px 28px 0" }}>
+      <main
+        id="main-content"
+        style={{ maxWidth: 640, margin: "0 auto", padding: "48px 28px 0" }}
+      >
         {/* Header */}
         <div className="fade-up d1" style={{ marginBottom: 40 }}>
           <div
@@ -410,7 +413,7 @@ export default function Contact() {
               >
                 {status === "sending" ? "sending..." : "send message"}
               </button>
-              <span style={{ ...MONO, fontSize: 10, color: "var(--muted2)" }}>
+              <span style={{ ...MONO, fontSize: 10, color: "var(--muted)" }}>
                 we'll reply to your email
               </span>
             </div>
@@ -468,7 +471,7 @@ export default function Contact() {
               >
                 {value}
               </div>
-              <div style={{ ...MONO, fontSize: 10, color: "var(--muted2)" }}>
+              <div style={{ ...MONO, fontSize: 10, color: "var(--muted)" }}>
                 {sub}
               </div>
             </div>
