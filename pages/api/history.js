@@ -5,59 +5,89 @@ export default async function handler(req, res) {
 
   const { hours, from, to } = req.query;
 
-  let rows;
-
   try {
+    let rows;
+
     if (from && to) {
-      // Date range mode: from=2024-01-01 to=2024-01-07
       const fromDate = new Date(from);
       const toDate = new Date(to);
-      toDate.setHours(23, 59, 59, 999); // include full end day
+      toDate.setHours(23, 59, 59, 999);
 
-      // Validate
-      if (isNaN(fromDate) || isNaN(toDate)) {
+      if (isNaN(fromDate) || isNaN(toDate))
         return res
           .status(400)
           .json({ error: "Invalid date format. Use YYYY-MM-DD" });
+
+      const diffHours = (toDate - fromDate) / (1000 * 60 * 60);
+
+      // FIX: date_trunc literal string in SQL — cannot be parameterized
+      if (diffHours <= 24) {
+        rows = await sql`
+          SELECT date_trunc('minute', ts) AS t,
+                 ROUND(AVG(player_count))::int AS count,
+                 MAX(player_count) AS peak,
+                 MAX(max_players) AS max_slots
+          FROM snapshots
+          WHERE ts >= ${fromDate.toISOString()} AND ts <= ${toDate.toISOString()}
+          GROUP BY date_trunc('minute', ts) ORDER BY 1 ASC`;
+      } else if (diffHours <= 72) {
+        rows = await sql`
+          SELECT date_trunc('hour', ts) AS t,
+                 ROUND(AVG(player_count))::int AS count,
+                 MAX(player_count) AS peak,
+                 MAX(max_players) AS max_slots
+          FROM snapshots
+          WHERE ts >= ${fromDate.toISOString()} AND ts <= ${toDate.toISOString()}
+          GROUP BY date_trunc('hour', ts) ORDER BY 1 ASC`;
+      } else if (diffHours <= 336) {
+        rows = await sql`
+          SELECT date_trunc('hour', ts) AS t,
+                 ROUND(AVG(player_count))::int AS count,
+                 MAX(player_count) AS peak,
+                 MAX(max_players) AS max_slots
+          FROM snapshots
+          WHERE ts >= ${fromDate.toISOString()} AND ts <= ${toDate.toISOString()}
+          GROUP BY date_trunc('hour', ts) ORDER BY 1 ASC`;
+      } else {
+        rows = await sql`
+          SELECT date_trunc('day', ts) AS t,
+                 ROUND(AVG(player_count))::int AS count,
+                 MAX(player_count) AS peak,
+                 MAX(max_players) AS max_slots
+          FROM snapshots
+          WHERE ts >= ${fromDate.toISOString()} AND ts <= ${toDate.toISOString()}
+          GROUP BY date_trunc('day', ts) ORDER BY 1 ASC`;
       }
-
-      const diffMs = toDate - fromDate;
-      const diffHours = diffMs / (1000 * 60 * 60);
-
-      // Bucket size based on range
-      let bucket;
-      if (diffHours <= 24) bucket = "5 minutes";
-      else if (diffHours <= 72) bucket = "15 minutes";
-      else if (diffHours <= 336) bucket = "1 hour";
-      else bucket = "3 hours";
-
-      rows = await sql`
-        SELECT
-          date_trunc(${bucket.split(" ")[1]}, ts) AS t,
-          ROUND(AVG(player_count))::int AS count,
-          MAX(player_count) AS peak,
-          MAX(max_players) AS max_slots
-        FROM snapshots
-        WHERE ts >= ${fromDate.toISOString()}
-          AND ts <= ${toDate.toISOString()}
-        GROUP BY date_trunc(${bucket.split(" ")[1]}, ts)
-        ORDER BY 1 ASC
-      `;
     } else {
-      // Hours mode (legacy presets)
       const h = Math.min(parseInt(hours) || 24, 720);
-
-      rows = await sql`
-        SELECT
-          date_trunc('minute', ts) AS t,
-          ROUND(AVG(player_count))::int AS count,
-          MAX(player_count) AS peak,
-          MAX(max_players) AS max_slots
-        FROM snapshots
-        WHERE ts > NOW() - (${h} || ' hours')::interval
-        GROUP BY date_trunc('minute', ts)
-        ORDER BY 1 ASC
-      `;
+      if (h <= 6) {
+        rows = await sql`
+          SELECT date_trunc('minute', ts) AS t,
+                 ROUND(AVG(player_count))::int AS count,
+                 MAX(player_count) AS peak,
+                 MAX(max_players) AS max_slots
+          FROM snapshots
+          WHERE ts > NOW() - (${h} || ' hours')::interval
+          GROUP BY date_trunc('minute', ts) ORDER BY 1 ASC`;
+      } else if (h <= 48) {
+        rows = await sql`
+          SELECT date_trunc('hour', ts) AS t,
+                 ROUND(AVG(player_count))::int AS count,
+                 MAX(player_count) AS peak,
+                 MAX(max_players) AS max_slots
+          FROM snapshots
+          WHERE ts > NOW() - (${h} || ' hours')::interval
+          GROUP BY date_trunc('hour', ts) ORDER BY 1 ASC`;
+      } else {
+        rows = await sql`
+          SELECT date_trunc('day', ts) AS t,
+                 ROUND(AVG(player_count))::int AS count,
+                 MAX(player_count) AS peak,
+                 MAX(max_players) AS max_slots
+          FROM snapshots
+          WHERE ts > NOW() - (${h} || ' hours')::interval
+          GROUP BY date_trunc('day', ts) ORDER BY 1 ASC`;
+      }
     }
 
     const counts = rows.map((r) => r.count);

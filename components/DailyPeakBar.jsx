@@ -1,7 +1,22 @@
+import { useRef, useEffect, useState } from "react";
+
 export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
+  const containerRef = useRef(null);
+  const [containerW, setContainerW] = useState(400);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      setContainerW(entries[0].contentRect.width);
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   if (daily.length === 0) {
     return (
       <div
+        className="fade-up d6"
         style={{
           background: "var(--bg2)",
           border: "1px solid var(--line)",
@@ -20,20 +35,26 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
     );
   }
 
-  const BAR_W = 30,
-    GAP = 8,
-    H = 90,
-    PAD_L = 24,
-    PAD_B = 22;
+  // Responsive bar sizing based on actual container width
+  const PAD_L = 28;
+  const PAD_B = 24;
+  const H = 100;
+  const n = daily.length;
+  const usable = Math.max(containerW - PAD_L - 16, 100);
+  const GAP = Math.max(3, Math.min(8, Math.floor((usable / n) * 0.2)));
+  const BAR_W = Math.max(10, Math.floor((usable - GAP * (n - 1)) / n));
+  const totalW = PAD_L + n * (BAR_W + GAP) - GAP + 16;
+
   const maxVal = Math.max(...daily.map((d) => d.peak), 1);
-  const totalW = daily.length * (BAR_W + GAP) - GAP + PAD_L + 16;
   const fmt = (d) =>
     new Date(d)
       .toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })
+      .slice(0, 2)
       .toUpperCase();
 
   return (
     <div
+      className="fade-up d6"
       style={{
         background: "var(--bg2)",
         border: "1px solid var(--line)",
@@ -73,8 +94,15 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
         </span>
       </div>
 
-      <div style={{ padding: "16px 20px 20px", overflowX: "auto" }}>
-        <svg width={totalW} height={H + PAD_B} style={{ display: "block" }}>
+      <div
+        ref={containerRef}
+        style={{ padding: "16px 20px 20px", overflowX: "auto" }}
+      >
+        <svg
+          width={Math.max(totalW, containerW - 40)}
+          height={H + PAD_B}
+          style={{ display: "block", minWidth: 180 }}
+        >
           {[0.25, 0.5, 0.75, 1].map((pct) => (
             <g key={pct}>
               <line
@@ -89,7 +117,7 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
                 x={PAD_L - 4}
                 y={H - H * pct + 3}
                 textAnchor="end"
-                fill="#222"
+                fill="#2a2a2a"
                 fontSize="8"
                 fontFamily="'DM Mono', monospace"
                 fontWeight="300"
@@ -102,6 +130,7 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
             const x = PAD_L + i * (BAR_W + GAP);
             const peakH = (d.peak / maxVal) * H;
             const avgH = (d.avg / maxVal) * H;
+            const inner = Math.max(0, BAR_W - 10);
             return (
               <g key={i}>
                 <rect
@@ -115,22 +144,24 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
                 <rect
                   x={x + 5}
                   y={H - avgH}
-                  width={BAR_W - 10}
+                  width={inner}
                   height={avgH}
-                  fill="rgba(61,220,132,0.5)"
+                  fill="rgba(61,220,132,0.55)"
                   rx="3"
                 />
-                <text
-                  x={x + BAR_W / 2}
-                  y={H - peakH - 4}
-                  textAnchor="middle"
-                  fill="#2a2a2a"
-                  fontSize="8"
-                  fontFamily="'DM Mono', monospace"
-                  fontWeight="300"
-                >
-                  {d.peak}
-                </text>
+                {BAR_W > 14 && (
+                  <text
+                    x={x + BAR_W / 2}
+                    y={H - peakH - 4}
+                    textAnchor="middle"
+                    fill="#2a2a2a"
+                    fontSize="8"
+                    fontFamily="'DM Mono', monospace"
+                    fontWeight="300"
+                  >
+                    {d.peak}
+                  </text>
+                )}
                 <text
                   x={x + BAR_W / 2}
                   y={H + 16}
@@ -149,7 +180,7 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
         <div style={{ display: "flex", gap: 14, marginTop: 2 }}>
           {[
             { color: "#161616", label: "peak" },
-            { color: "rgba(61,220,132,0.5)", label: "avg" },
+            { color: "rgba(61,220,132,0.55)", label: "avg" },
           ].map(({ color, label }) => (
             <div
               key={label}

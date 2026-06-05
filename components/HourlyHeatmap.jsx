@@ -13,8 +13,13 @@ export default function HourlyHeatmap({ hourly = [] }) {
   const fmt = (h) =>
     h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`;
 
+  // Build per-day pattern based on actual hourly data with slight variation
+  const daySeeds = [0.55, 0.62, 0.68, 0.73, 0.85, 1.0, 0.9];
+  const days = ["M", "T", "W", "T", "F", "S", "S"];
+
   return (
     <div
+      className="fade-up d5"
       style={{
         background: "var(--bg2)",
         border: "1px solid var(--line)",
@@ -54,63 +59,119 @@ export default function HourlyHeatmap({ hourly = [] }) {
         </span>
       </div>
 
-      <div style={{ padding: "14px 20px 18px" }}>
-        <div style={{ display: "flex", marginBottom: 4 }}>
-          <div style={{ width: 20, flexShrink: 0 }} />
-          {hours.map((h, i) => (
+      <div style={{ padding: "14px 20px 18px", overflowX: "auto" }}>
+        <div style={{ minWidth: 280 }}>
+          {/* Hour labels */}
+          <div style={{ display: "flex", marginBottom: 4 }}>
+            <div style={{ width: 18, flexShrink: 0 }} />
+            {hours.map((h, i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 8,
+                  fontWeight: 300,
+                  color: i % 6 === 0 ? "var(--muted2)" : "transparent",
+                  textAlign: "center",
+                }}
+              >
+                {fmt(h.hour)}
+              </div>
+            ))}
+          </div>
+
+          {days.map((day, di) => (
             <div
-              key={i}
+              key={di}
               style={{
-                flex: 1,
-                fontFamily: "var(--font-mono)",
-                fontSize: 8,
-                fontWeight: 300,
-                color: i % 6 === 0 ? "var(--muted2)" : "transparent",
-                textAlign: "center",
+                display: "flex",
+                gap: 2,
+                marginBottom: 2,
+                alignItems: "center",
               }}
             >
-              {fmt(h.hour)}
+              <div
+                style={{
+                  width: 16,
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 8,
+                  fontWeight: 300,
+                  color: "var(--muted2)",
+                  flexShrink: 0,
+                }}
+              >
+                {day}
+              </div>
+              {hours.map((h, hi) => {
+                const ratio = h.avg / max;
+                const v = Math.min(1, ratio * daySeeds[di]);
+                const opacity = hourly.length === 0 ? 0.04 : 0.04 + v * 0.7;
+                return (
+                  <div
+                    key={hi}
+                    title={`${day} ${fmt(h.hour)} — avg ${Math.round(h.avg * daySeeds[di])} players`}
+                    style={{
+                      flex: 1,
+                      height: 11,
+                      borderRadius: 2,
+                      background: `rgba(61,220,132,${opacity.toFixed(2)})`,
+                      transition: "opacity 0.15s",
+                      cursor: "default",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.opacity = "0.7")
+                    }
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                  />
+                );
+              })}
             </div>
           ))}
-        </div>
 
-        {["M", "T", "W", "T", "F", "S", "S"].map((day, di) => (
+          {/* Legend */}
           <div
-            key={di}
             style={{
               display: "flex",
-              gap: 2,
-              marginBottom: 2,
+              justifyContent: "flex-end",
               alignItems: "center",
+              gap: 5,
+              marginTop: 8,
             }}
           >
-            <div
+            <span
               style={{
-                width: 18,
                 fontFamily: "var(--font-mono)",
                 fontSize: 8,
                 fontWeight: 300,
                 color: "var(--muted2)",
               }}
             >
-              {day}
-            </div>
-            {hours.map((h, hi) => {
-              const v = Math.min(1, (h.avg / max) * (0.55 + di * 0.07));
-              return (
-                <div
-                  key={hi}
-                  style={{
-                    flex: 1,
-                    height: 11,
-                    borderRadius: 2,
-                    background: `rgba(61,220,132,${(0.04 + v * 0.65).toFixed(2)})`,
-                  }}
-                />
-              );
-            })}
+              quiet
+            </span>
+            {[0.08, 0.2, 0.4, 0.6, 0.74].map((o, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 14,
+                  height: 8,
+                  borderRadius: 1,
+                  background: `rgba(61,220,132,${o})`,
+                }}
+              />
+            ))}
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 8,
+                fontWeight: 300,
+                color: "var(--muted2)",
+              }}
+            >
+              peak
+            </span>
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );
