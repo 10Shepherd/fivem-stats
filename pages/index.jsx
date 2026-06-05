@@ -12,6 +12,8 @@ import {
 } from "recharts";
 import HourlyHeatmap from "../components/HourlyHeatmap";
 import DailyPeakBar from "../components/DailyPeakBar";
+import Nav from "../components/Nav";
+import Footer from "../components/Footer";
 
 const SERVER_CODE = "3lamjz";
 const REFRESH_MS = 30_000;
@@ -231,82 +233,11 @@ export default function Dashboard() {
         />
       </Head>
 
-      {/* ── Nav ── */}
-      <nav
-        className="nav-wrap"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 28px",
-          borderBottom: "1px solid var(--line)",
-          background: "rgba(6,6,6,0.92)",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
-        }}
-      >
-        {/* Logo */}
-        <div
-          className="slide-in d1"
-          style={{ display: "flex", alignItems: "center", gap: 10 }}
-        >
-          <span
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 19,
-              letterSpacing: "0.14em",
-              color: "#fff",
-            }}
-          >
-            NOPIXEL
-          </span>
-          <span className="pill">stats</span>
-        </div>
-
-        {/* Right side */}
-        <div
-          className="fade-in d2"
-          style={{ display: "flex", alignItems: "center", gap: 12 }}
-        >
-          {/* Status */}
-          <div
-            className={`pill ${online ? "pill-green" : ""}`}
-            style={{ gap: 6 }}
-          >
-            <div
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: online ? "var(--green)" : "var(--red)",
-                animation: online
-                  ? "pulseGreen 2s infinite"
-                  : "blink 2.5s infinite",
-                flexShrink: 0,
-              }}
-            />
-            {online ? "online" : "offline"}
-          </div>
-
-          <span
-            style={{
-              ...MONO,
-              fontSize: 9,
-              color: "var(--muted2)",
-              letterSpacing: "0.06em",
-            }}
-          >
-            {lastSync ? `↻ ${countdown}s` : "—"}
-          </span>
-
-          <button className="btn" onClick={refreshAll}>
-            sync
-          </button>
-        </div>
-      </nav>
+      <Nav
+        online={online}
+        countdown={lastSync ? countdown : null}
+        onSync={refreshAll}
+      />
 
       <main
         className="main-wrap"
@@ -752,40 +683,7 @@ export default function Dashboard() {
           <DailyPeakBar daily={peakStats.daily} maxSlots={maxSlots} />
         </div>
 
-        {/* ── Footer ── */}
-        <div
-          style={{
-            marginTop: 32,
-            paddingTop: 16,
-            borderTop: "1px solid var(--line)",
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <span
-            style={{
-              ...MONO,
-              fontSize: 9,
-              color: "#1c1c1c",
-              letterSpacing: "0.08em",
-            }}
-          >
-            via cfx.re public api · polls every 30s · not affiliated with
-            nopixel
-          </span>
-          <span
-            style={{
-              ...MONO,
-              fontSize: 9,
-              color: "#1c1c1c",
-              letterSpacing: "0.08em",
-            }}
-          >
-            {SERVER_CODE}
-          </span>
-        </div>
+        <Footer />
       </main>
     </>
   );
