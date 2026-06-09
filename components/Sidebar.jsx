@@ -368,6 +368,7 @@ export default function Sidebar({
               <NavSection label="Other">
                 <NavItem href="/contact" icon="✉" label="Contact" />
                 <NavItem href="/privacy" icon="⚇" label="Privacy" />
+                <NavItem href="/terms" icon="§" label="Terms" />
               </NavSection>
             </>
           )}

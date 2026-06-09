@@ -309,7 +309,7 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
   // Store raw ISO strings alongside formatted labels so tooltip can use them too
   const chartData = (history.rows || []).map((r) => ({
     t: fmtChartLabel(r.t, bucket, userTz),
-    tFull: fmtTooltipLabel(r.t, bucket, userTz),
+    tFull: fmtTooltipLabel(r.t, userTz), // was: fmtTooltipLabel(r.t, bucket, userTz)
     count: r.count,
   }));
 
