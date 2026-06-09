@@ -4,6 +4,18 @@ import { useRouter } from "next/router";
 
 const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
 
+function SidebarLogo({ size = 30 }) {
+  return (
+    <img
+      src="/assets/icon-192.png"
+      alt="FiveM Stats"
+      width={size}
+      height={size}
+      style={{ borderRadius: 8, flexShrink: 0, display: "block" }}
+    />
+  );
+}
+
 function NavItem({ href, icon, label, badge }) {
   const router = useRouter();
   const isActive = href
@@ -138,24 +150,7 @@ export default function Sidebar({
                 gap: 10,
               }}
             >
-              <div
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 8,
-                  flexShrink: 0,
-                  background: "rgba(61,220,132,0.15)",
-                  border: "1px solid rgba(61,220,132,0.3)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "var(--green)",
-                }}
-              >
-                FS
-              </div>
+              <SidebarLogo size={30} />
               <div>
                 <div
                   style={{
@@ -181,25 +176,7 @@ export default function Sidebar({
               </div>
             </Link>
           )}
-          {collapsed && (
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                background: "rgba(61,220,132,0.15)",
-                border: "1px solid rgba(61,220,132,0.3)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "var(--green)",
-              }}
-            >
-              FS
-            </div>
-          )}
+          {collapsed && <SidebarLogo size={30} />}
           <button
             onClick={onToggle}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
