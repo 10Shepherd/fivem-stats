@@ -122,14 +122,19 @@ const PRESETS = [
 ];
 
 export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
-  const today = new Date();
-  const weekAgo = new Date(today);
-  weekAgo.setDate(today.getDate() - 7);
-
-  // FIX #1: detect user's timezone once on mount
+  // FIX #1: detect user's timezone once on mount.
+  // Dates are initialized on the client too (not during render) to avoid a
+  // server/client hydration mismatch (React errors #418/#423/#425).
   const [userTz, setUserTz] = useState("UTC");
+  const [todayStr, setTodayStr] = useState("");
   useEffect(() => {
     setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    const now = new Date();
+    const week = new Date(now);
+    week.setDate(now.getDate() - 7);
+    setTodayStr(toDateInput(now));
+    setFromDate(toDateInput(week));
+    setToDate(toDateInput(now));
   }, []);
 
   const [activeServer, setActiveServer] = useState(propServer);
@@ -151,16 +156,16 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
   const [countdown, setCountdown] = useState(30);
   const [filterMode, setFilterMode] = useState("preset");
   const [activePreset, setActivePreset] = useState(24);
-  const [fromDate, setFromDate] = useState(toDateInput(weekAgo));
-  const [toDate, setToDate] = useState(toDateInput(today));
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [rangeError, setRangeError] = useState("");
 
   // Refs for stale-closure-safe interval
   const serverRef = useRef(activeServer);
   const filterRef = useRef("preset");
   const presetRef = useRef(24);
-  const fromRef = useRef(toDateInput(weekAgo));
-  const toRef = useRef(toDateInput(today));
+  const fromRef = useRef("");
+  const toRef = useRef("");
   useEffect(() => {
     serverRef.current = activeServer;
   }, [activeServer]);
@@ -448,15 +453,7 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
       {/* ── Page content ── */}
       <main id="main-content" className="page-content">
         {/* KPI row */}
-        <div
-          className="fade-up d1"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4,1fr)",
-            gap: 10,
-            marginBottom: 14,
-          }}
-        >
+        <div className="kpi-grid fade-up d1">
           {/* FIX #3: pass color directly to AnimatedNumber — no more broken <style> injection */}
           <div className="card" style={{ padding: "18px 18px 16px" }}>
             <p style={LABEL}>Players online</p>
@@ -699,7 +696,7 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
                     type="date"
                     value={toDate}
                     min={fromDate}
-                    max={toDateInput(new Date())}
+                    max={todayStr}
                     aria-label="End date"
                     onChange={(e) => {
                       setToDate(e.target.value);
@@ -910,7 +907,8 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
             }}
           >
             data via cfx.re public api · polls every 30s · times shown in{" "}
-            {userTz} · not affiliated with nopixel
+            {userTz} · independent tracker, not affiliated with the servers
+            listed
           </span>
           <div style={{ display: "flex", gap: 16 }}>
             {[
