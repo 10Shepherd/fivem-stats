@@ -6,7 +6,12 @@ const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
 
 export default function AddServer() {
   const router = useRouter();
-  const [form, setForm] = useState({ code: "", name: "", color: "#3ddc84" });
+  const [form, setForm] = useState({
+    code: "",
+    name: "",
+    color: "#3ddc84",
+    adminKey: "",
+  });
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(null);
@@ -47,11 +52,19 @@ export default function AddServer() {
       setError("code and name required");
       return;
     }
+    if (!form.adminKey) {
+      setError("admin key required to add a server");
+      return;
+    }
     setStatus("saving");
+    setError("");
     try {
       const r = await fetch("/api/servers", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-cron-secret": "" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-cron-secret": form.adminKey,
+        },
         body: JSON.stringify({
           code: form.code.trim(),
           name: form.name.trim(),
@@ -59,15 +72,23 @@ export default function AddServer() {
           tags: [],
         }),
       });
+      if (r.status === 401) {
+        setError("Wrong admin key — check your CRON_SECRET value");
+        setStatus(null);
+        return;
+      }
       const d = await r.json();
       if (d.ok) {
         setStatus("done");
         setTimeout(() => router.push("/"), 1200);
-      } else setError(d.error || "Failed to add server");
+      } else {
+        setError(d.error || "Failed to add server");
+        setStatus(null);
+      }
     } catch {
       setError("Network error");
+      setStatus(null);
     }
-    if (status !== "done") setStatus(null);
   }
 
   const inputStyle = {
@@ -82,6 +103,16 @@ export default function AddServer() {
     color: "var(--text)",
     outline: "none",
     transition: "border-color 0.2s",
+  };
+
+  const labelStyle = {
+    ...MONO,
+    fontSize: 9,
+    letterSpacing: "0.14em",
+    color: "var(--muted)",
+    textTransform: "uppercase",
+    display: "block",
+    marginBottom: 6,
   };
 
   return (
@@ -129,18 +160,7 @@ export default function AddServer() {
           >
             {/* Code + check */}
             <div>
-              <label
-                htmlFor="sv-code"
-                style={{
-                  ...MONO,
-                  fontSize: 9,
-                  letterSpacing: "0.14em",
-                  color: "var(--muted)",
-                  textTransform: "uppercase",
-                  display: "block",
-                  marginBottom: 6,
-                }}
-              >
+              <label htmlFor="sv-code" style={labelStyle}>
                 CFX Server Code
               </label>
               <div style={{ display: "flex", gap: 8 }}>
@@ -208,18 +228,7 @@ export default function AddServer() {
 
             {/* Name */}
             <div>
-              <label
-                htmlFor="sv-name"
-                style={{
-                  ...MONO,
-                  fontSize: 9,
-                  letterSpacing: "0.14em",
-                  color: "var(--muted)",
-                  textTransform: "uppercase",
-                  display: "block",
-                  marginBottom: 6,
-                }}
-              >
+              <label htmlFor="sv-name" style={labelStyle}>
                 Display Name
               </label>
               <input
@@ -236,18 +245,7 @@ export default function AddServer() {
 
             {/* Color */}
             <div>
-              <label
-                htmlFor="sv-color"
-                style={{
-                  ...MONO,
-                  fontSize: 9,
-                  letterSpacing: "0.14em",
-                  color: "var(--muted)",
-                  textTransform: "uppercase",
-                  display: "block",
-                  marginBottom: 6,
-                }}
-              >
+              <label htmlFor="sv-color" style={labelStyle}>
                 Accent Color
               </label>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -270,6 +268,35 @@ export default function AddServer() {
                   {form.color}
                 </span>
               </div>
+            </div>
+
+            {/* Admin key */}
+            <div>
+              <label htmlFor="sv-key" style={labelStyle}>
+                Admin Key
+              </label>
+              <input
+                id="sv-key"
+                type="password"
+                placeholder="your CRON_SECRET value"
+                value={form.adminKey}
+                onChange={(e) => set("adminKey", e.target.value)}
+                style={inputStyle}
+                onFocus={(e) => (e.target.style.borderColor = "var(--green)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--line2)")}
+              />
+              <p
+                style={{
+                  ...MONO,
+                  fontSize: 9,
+                  color: "var(--muted)",
+                  marginTop: 6,
+                  lineHeight: 1.6,
+                }}
+              >
+                Adding a server is an admin action. Enter the same value you set
+                for CRON_SECRET in Vercel.
+              </p>
             </div>
 
             {error && (
@@ -316,8 +343,8 @@ export default function AddServer() {
             lineHeight: 1.7,
           }}
         >
-          Note: you also need to add a cron job for the new server. The poll API
-          now polls all active servers automatically.
+          Note: the poll API automatically polls all active servers on every
+          cron tick, so no extra cron job is needed for new servers.
         </p>
       </main>
     </>
