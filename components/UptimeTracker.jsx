@@ -7,9 +7,8 @@ function fmtDuration(mins) {
   if (mins < 1440) return `${Math.round(mins / 60)}h ${mins % 60}m`;
   return `${Math.floor(mins / 1440)}d ${Math.round((mins % 1440) / 60)}h`;
 }
-
 function fmtTs(ts) {
-  return new Date(ts).toLocaleString("en-IN", {
+  return new Date(ts).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -24,7 +23,8 @@ export default function UptimeTracker({ uptime = {} }) {
   const downtimes = events.filter((e) => e.type === "downtime");
   const restarts = events.filter((e) => e.type === "restart");
 
-  // Build a 7-day timeline of 168 hourly blocks
+  // FIX #8: 7-day timeline = 168 hourly blocks in a SINGLE scrollable row
+  // Each block represents one hour. Green = online, red = gap detected.
   const blocks = Array.from({ length: 168 }, (_, i) => {
     const blockStart = new Date(Date.now() - (167 - i) * 3600000);
     const blockEnd = new Date(blockStart.getTime() + 3600000);
@@ -34,6 +34,13 @@ export default function UptimeTracker({ uptime = {} }) {
       return s < blockEnd && e > blockStart;
     });
     return { i, ts: blockStart, down: hasDown };
+  });
+
+  // Group into 7 rows of 24 (one row per day) for readable layout
+  const days = Array.from({ length: 7 }, (_, d) => {
+    const dayBlocks = blocks.slice(d * 24, (d + 1) * 24);
+    const dayDate = dayBlocks[0]?.ts;
+    return { dayDate, blocks: dayBlocks };
   });
 
   const uptimeColor =
@@ -78,70 +85,79 @@ export default function UptimeTracker({ uptime = {} }) {
       </div>
 
       <div style={{ padding: "16px 20px 20px" }}>
-        {/* 7-day block timeline */}
-        <div style={{ marginBottom: 12 }}>
+        {/* FIX #8: 7 rows of 24 hourly blocks — readable on all screen sizes */}
+        <div
+          role="img"
+          aria-label="7-day uptime timeline, one row per day"
+          style={{ marginBottom: 14 }}
+        >
           <div
             style={{
               ...MONO,
               fontSize: 9,
               color: "var(--muted)",
-              letterSpacing: "0.1em",
               marginBottom: 8,
+              letterSpacing: "0.08em",
             }}
           >
-            168h timeline — each block = 1 hour
+            168h timeline — each cell = 1 hour
           </div>
-          <div
-            role="img"
-            aria-label="7-day uptime timeline"
-            style={{ display: "flex", gap: 2, flexWrap: "wrap" }}
-          >
-            {blocks.map((b, i) => (
+          {days.map((day, di) => (
+            <div
+              key={di}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                marginBottom: 3,
+              }}
+            >
+              {/* Day label */}
               <div
-                key={i}
-                title={`${fmtTs(b.ts)} — ${b.down ? "offline/gap" : "online"}`}
                 style={{
-                  width: "calc(100% / 28 - 2px)",
-                  minWidth: 6,
-                  height: 20,
-                  borderRadius: 2,
-                  background: b.down
-                    ? "rgba(224,85,85,0.5)"
-                    : "rgba(61,220,132,0.35)",
-                  transition: "opacity 0.15s, transform 0.1s",
-                  cursor: "default",
+                  ...MONO,
+                  fontSize: 8,
+                  color: "var(--muted)",
+                  width: 28,
+                  flexShrink: 0,
+                  letterSpacing: "0.04em",
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = "0.7";
-                  e.currentTarget.style.transform = "scaleY(1.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = "1";
-                  e.currentTarget.style.transform = "scaleY(1)";
-                }}
-              />
-            ))}
-          </div>
-          {/* Day labels */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: 5,
-            }}
-          >
-            {Array.from({ length: 8 }, (_, i) => {
-              const d = new Date(Date.now() - (7 - i) * 86400000);
-              return (
-                <span
-                  key={i}
-                  style={{ ...MONO, fontSize: 8, color: "var(--muted)" }}
-                >
-                  {d.toLocaleDateString("en-US", { weekday: "short" })}
-                </span>
-              );
-            })}
-          </div>
+              >
+                {day.dayDate
+                  ? day.dayDate
+                      .toLocaleDateString("en-US", { weekday: "short" })
+                      .toUpperCase()
+                  : "—"}
+              </div>
+              {/* 24 hourly blocks */}
+              {day.blocks.map((b, bi) => (
+                <div
+                  key={bi}
+                  title={`${fmtTs(b.ts)} — ${b.down ? "offline/gap" : "online"}`}
+                  aria-hidden="true"
+                  style={{
+                    flex: 1,
+                    height: 16,
+                    borderRadius: 2,
+                    background: b.down
+                      ? "rgba(224,85,85,0.55)"
+                      : "rgba(61,220,132,0.3)",
+                    transition: "opacity 0.15s, transform 0.1s",
+                    cursor: "default",
+                    minWidth: 0,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = "0.65";
+                    e.currentTarget.style.transform = "scaleY(1.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = "1";
+                    e.currentTarget.style.transform = "scaleY(1)";
+                  }}
+                />
+              ))}
+            </div>
+          ))}
         </div>
 
         {/* Stats row */}
@@ -149,7 +165,7 @@ export default function UptimeTracker({ uptime = {} }) {
           style={{
             display: "flex",
             gap: 20,
-            marginBottom: 16,
+            marginBottom: 14,
             paddingTop: 12,
             borderTop: "1px solid var(--line)",
           }}
@@ -211,14 +227,15 @@ export default function UptimeTracker({ uptime = {} }) {
           }}
         >
           {[
-            { color: "rgba(61,220,132,0.35)", label: "online" },
-            { color: "rgba(224,85,85,0.5)", label: "offline / gap" },
+            { color: "rgba(61,220,132,0.3)", label: "online" },
+            { color: "rgba(224,85,85,0.55)", label: "offline / gap" },
           ].map(({ color, label }) => (
             <div
               key={label}
               style={{ display: "flex", alignItems: "center", gap: 5 }}
             >
               <div
+                aria-hidden="true"
                 style={{
                   width: 12,
                   height: 8,
@@ -263,7 +280,7 @@ export default function UptimeTracker({ uptime = {} }) {
                 style={{
                   display: "inline-block",
                   transition: "transform 0.2s",
-                  transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+                  transform: expanded ? "rotate(90deg)" : "none",
                 }}
               >
                 ▶
@@ -296,6 +313,7 @@ export default function UptimeTracker({ uptime = {} }) {
                     }}
                   >
                     <div
+                      aria-hidden="true"
                       style={{
                         width: 6,
                         height: 6,

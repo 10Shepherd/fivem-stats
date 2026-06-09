@@ -14,13 +14,8 @@ import HourlyHeatmap from "../components/HourlyHeatmap";
 import DailyPeakBar from "../components/DailyPeakBar";
 import UptimeTracker from "../components/UptimeTracker";
 import PeakSummary from "../components/PeakSummary";
-import Nav from "../components/Nav";
-import Footer from "../components/Footer";
 
-const SERVER_CODE = "3lamjz";
-const SITE_NAME = "FiveM Stats";
 const REFRESH_MS = 30_000;
-
 const toDateInput = (d) => d.toISOString().split("T")[0];
 
 const fmtAge = (s) => {
@@ -29,6 +24,42 @@ const fmtAge = (s) => {
   if (s < 3600) return `${Math.round(s / 60)}m ago`;
   return `${Math.round(s / 3600)}h ago`;
 };
+
+// FIX #1 + #2: format chart timestamps in the USER'S local timezone,
+// with a label style appropriate to the bucket size
+function fmtChartLabel(isoString, bucket, userTz) {
+  const d = new Date(isoString);
+  const opts = { timeZone: userTz };
+
+  if (bucket === "minute" || bucket === "hour") {
+    // Short time — just HH:MM in user's timezone
+    return d.toLocaleTimeString("en-US", {
+      ...opts,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+  // Day bucket — "Jun 7"
+  return d.toLocaleDateString("en-US", {
+    ...opts,
+    month: "short",
+    day: "numeric",
+  });
+}
+
+// Tooltip also shows full local time
+function fmtTooltipLabel(isoString, userTz) {
+  const d = new Date(isoString);
+  return d.toLocaleString("en-US", {
+    timeZone: userTz,
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
 
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -39,16 +70,15 @@ function ChartTooltip({ active, payload, label }) {
         border: "1px solid #202020",
         borderRadius: 10,
         padding: "9px 14px",
-        fontFamily: "'DM Mono', monospace",
+        fontFamily: "'DM Mono',monospace",
         fontSize: 11,
         fontWeight: 300,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
       }}
     >
       <div style={{ color: "#888", marginBottom: 4, fontSize: 10 }}>
         {label}
       </div>
-      <div style={{ color: "#3ddc84", fontWeight: 400 }}>
+      <div style={{ color: "var(--green)", fontWeight: 400 }}>
         {payload[0].value}{" "}
         <span style={{ color: "#888", fontWeight: 300 }}>players</span>
       </div>
@@ -56,7 +86,8 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
-function AnimatedNumber({ value, large }) {
+// FIX #3: AnimatedNumber now accepts color prop and applies it directly
+function AnimatedNumber({ value, large, color }) {
   const [key, setKey] = useState(0);
   const prev = useRef(value);
   useEffect(() => {
@@ -71,9 +102,10 @@ function AnimatedNumber({ value, large }) {
       style={{
         display: "inline-block",
         fontFamily: "var(--font-display)",
-        fontSize: large ? "clamp(60px, 10vw, 100px)" : "clamp(38px, 5vw, 62px)",
+        fontSize: large ? "clamp(52px,8vw,88px)" : "clamp(32px,4vw,52px)",
         lineHeight: 0.85,
         letterSpacing: "0.02em",
+        color: color || "#ffffff",
         animation: "countUp 0.45s cubic-bezier(0.22,1,0.36,1) both",
       }}
     >
@@ -89,13 +121,25 @@ const PRESETS = [
   { label: "7D", hours: 168 },
 ];
 
-export default function Dashboard() {
+export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
   const today = new Date();
   const weekAgo = new Date(today);
   weekAgo.setDate(today.getDate() - 7);
 
+  // FIX #1: detect user's timezone once on mount
+  const [userTz, setUserTz] = useState("UTC");
+  useEffect(() => {
+    setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, []);
+
+  const [activeServer, setActiveServer] = useState(propServer);
+  const [serverInfo, setServerInfo] = useState(null);
   const [live, setLive] = useState(null);
-  const [history, setHistory] = useState({ rows: [], summary: {} });
+  const [history, setHistory] = useState({
+    rows: [],
+    summary: {},
+    bucket: "hour",
+  });
   const [peakStats, setPeakStats] = useState({
     daily: [],
     hourly: [],
@@ -111,66 +155,101 @@ export default function Dashboard() {
   const [toDate, setToDate] = useState(toDateInput(today));
   const [rangeError, setRangeError] = useState("");
 
-  const filterModeRef = useRef("preset");
-  const activePresetRef = useRef(24);
-  const fromDateRef = useRef(toDateInput(weekAgo));
-  const toDateRef = useRef(toDateInput(today));
+  // Refs for stale-closure-safe interval
+  const serverRef = useRef(activeServer);
+  const filterRef = useRef("preset");
+  const presetRef = useRef(24);
+  const fromRef = useRef(toDateInput(weekAgo));
+  const toRef = useRef(toDateInput(today));
   useEffect(() => {
-    filterModeRef.current = filterMode;
+    serverRef.current = activeServer;
+  }, [activeServer]);
+  useEffect(() => {
+    filterRef.current = filterMode;
   }, [filterMode]);
   useEffect(() => {
-    activePresetRef.current = activePreset;
+    presetRef.current = activePreset;
   }, [activePreset]);
   useEffect(() => {
-    fromDateRef.current = fromDate;
+    fromRef.current = fromDate;
   }, [fromDate]);
   useEffect(() => {
-    toDateRef.current = toDate;
+    toRef.current = toDate;
   }, [toDate]);
+
+  // Listen for sidebar server changes
+  useEffect(() => {
+    const fn = (e) => setActiveServer(e.detail.code);
+    window.addEventListener("serverChange", fn);
+    return () => window.removeEventListener("serverChange", fn);
+  }, []);
+
+  // Reset + re-fetch when server changes
+  useEffect(() => {
+    setLoading(true);
+    setLive(null);
+    setHistory({ rows: [], summary: {}, bucket: "hour" });
+    refreshAll();
+  }, [activeServer]); // eslint-disable-line
 
   const fetchLive = async () => {
     try {
-      const r = await fetch("/api/live");
+      const r = await fetch(`/api/live?server=${serverRef.current}`);
       const d = await r.json();
       setLive(d);
     } catch {}
   };
+
   const fetchHistory = async (opts = {}) => {
     try {
       const url =
         opts.from && opts.to
-          ? `/api/history?from=${opts.from}&to=${opts.to}`
-          : `/api/history?hours=${opts.hours || 24}`;
+          ? `/api/history?server=${serverRef.current}&from=${opts.from}&to=${opts.to}`
+          : `/api/history?server=${serverRef.current}&hours=${opts.hours || 24}`;
       const r = await fetch(url);
       const d = await r.json();
       if (!d.error) setHistory(d);
     } catch {}
   };
+
   const fetchPeakStats = async () => {
     try {
-      const r = await fetch("/api/peakstats");
+      const r = await fetch(`/api/peakstats?server=${serverRef.current}`);
       const d = await r.json();
       if (!d.error) setPeakStats(d);
     } catch {}
   };
+
   const fetchUptime = async () => {
     try {
-      const r = await fetch("/api/uptime?days=7");
+      const r = await fetch(`/api/uptime?server=${serverRef.current}&days=7`);
       const d = await r.json();
       if (!d.error) setUptime(d);
     } catch {}
   };
 
+  const fetchServerList = async () => {
+    try {
+      const r = await fetch("/api/servers");
+      const d = await r.json();
+      if (Array.isArray(d)) {
+        const sv = d.find((s) => s.code === serverRef.current);
+        if (sv) setServerInfo(sv);
+      }
+    } catch {}
+  };
+
   const refreshAll = useCallback(async () => {
     const histOpts =
-      filterModeRef.current === "range"
-        ? { from: fromDateRef.current, to: toDateRef.current }
-        : { hours: activePresetRef.current };
+      filterRef.current === "range"
+        ? { from: fromRef.current, to: toRef.current }
+        : { hours: presetRef.current };
     await Promise.all([
       fetchLive(),
       fetchHistory(histOpts),
       fetchPeakStats(),
       fetchUptime(),
+      fetchServerList(),
     ]);
     setLastSync(new Date());
     setLoading(false);
@@ -196,9 +275,9 @@ export default function Dashboard() {
     return () => clearInterval(tick);
   }, [lastSync]);
 
-  function applyDateRange() {
+  function applyRange() {
     if (!fromDate || !toDate) {
-      setRangeError("select both dates");
+      setRangeError("select both");
       return;
     }
     if (new Date(fromDate) > new Date(toDate)) {
@@ -224,119 +303,182 @@ export default function Dashboard() {
   const maxSlots = live?.maxPlayers ?? 32;
   const fillPct = maxSlots > 0 ? Math.round((count / maxSlots) * 100) : 0;
   const summary = history.summary ?? {};
+  const bucket = history.bucket ?? "hour";
 
+  // FIX #1 + #2: format using user's detected timezone + bucket-aware labels
+  // Store raw ISO strings alongside formatted labels so tooltip can use them too
   const chartData = (history.rows || []).map((r) => ({
-    t: new Date(r.t).toLocaleString("en-IN", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
+    t: fmtChartLabel(r.t, bucket, userTz),
+    tFull: fmtTooltipLabel(r.t, bucket, userTz),
     count: r.count,
   }));
 
-  // FIX: --muted is now #888 (passes WCAG AA on #060606), use it for ALL secondary text
+  // 7d avg from daily peakStats
+  const sevenDayAvg = peakStats.daily.length
+    ? Math.round(
+        peakStats.daily.reduce((a, d) => a + d.avg, 0) / peakStats.daily.length,
+      )
+    : null;
+
+  const serverName = serverInfo?.name || activeServer;
+
   const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
-  // LABEL style uses --muted (passes contrast), not --muted2
   const LABEL = {
     ...MONO,
     fontSize: 9,
     letterSpacing: "0.18em",
     color: "var(--muted)",
     textTransform: "uppercase",
-    marginBottom: 12,
+    marginBottom: 10,
   };
+
+  // Timezone display name (short)
+  const tzShort = (() => {
+    try {
+      return new Date()
+        .toLocaleTimeString("en-US", {
+          timeZone: userTz,
+          timeZoneName: "short",
+        })
+        .split(" ")
+        .pop();
+    } catch {
+      return "UTC";
+    }
+  })();
 
   return (
     <>
       <Head>
-        <title>{SITE_NAME} — NoPixel Whitelisted</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>FiveM Stats — {serverName}</title>
         <meta
           name="description"
-          content="Live server statistics for NoPixel Whitelisted FiveM server — player count, uptime, peak hours and more."
+          content={`Live server statistics — ${serverName}`}
         />
-        <meta
-          property="og:title"
-          content={`${SITE_NAME} — NoPixel Whitelisted`}
-        />
-        <meta
-          property="og:description"
-          content={`${count} players online right now · ${fillPct}% capacity`}
-        />
-        <meta property="og:image" content="/api/og" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:type" content="website" />
+        <meta property="og:title" content={`FiveM Stats — ${serverName}`} />
+        <meta property="og:image" content={`/api/og?server=${activeServer}`} />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta
-          name="twitter:title"
-          content={`${SITE_NAME} — NoPixel Whitelisted`}
-        />
-        <meta
-          name="twitter:description"
-          content={`${count} players online right now`}
-        />
-        <meta name="twitter:image" content="/api/og" />
+        <meta name="twitter:image" content={`/api/og?server=${activeServer}`} />
       </Head>
 
-      <Nav
-        online={online}
-        countdown={lastSync ? countdown : null}
-        onSync={refreshAll}
-      />
+      {/* ── Topbar ── */}
+      <header className="topbar">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div>
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 17,
+                letterSpacing: "0.08em",
+                color: "#fff",
+                lineHeight: 1.1,
+              }}
+            >
+              {serverName}
+            </div>
+            <div style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
+              {activeServer} · {online ? "online" : "offline"} · {tzShort}
+            </div>
+          </div>
+        </div>
 
-      <main
-        id="main-content"
-        className="main-wrap"
-        style={{ padding: "20px 28px 56px", maxWidth: 1300, margin: "0 auto" }}
-      >
-        {/* ── Hero: 3 stat boxes ── */}
-        <div className="hero-grid fade-up d1">
-          {/* BIG: live count */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div
-            className="hero-main hero-cell"
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
               background: "var(--bg2)",
-              padding: "32px 28px",
-              position: "relative",
-              overflow: "hidden",
+              border: "1px solid var(--line)",
+              borderRadius: 20,
+              padding: "5px 12px",
+              ...MONO,
+              fontSize: 11,
+              color: online ? "var(--green)" : "var(--muted)",
             }}
           >
-            {/* Decorative glow — hidden from AT */}
             <div
               aria-hidden="true"
               style={{
-                position: "absolute",
-                top: -60,
-                right: -60,
-                width: 160,
-                height: 160,
+                width: 6,
+                height: 6,
                 borderRadius: "50%",
-                background:
-                  "radial-gradient(circle, rgba(61,220,132,0.07) 0%, transparent 70%)",
-                pointerEvents: "none",
+                background: online ? "var(--green)" : "var(--red)",
+                animation: online
+                  ? "pulseGreen 2s infinite"
+                  : "blink 2.5s infinite",
               }}
             />
-            {/* FIX: use <p> not <div> for stat label so it's semantic */}
-            <p style={LABEL}>players online</p>
-            <AnimatedNumber value={loading ? "—" : count} large />
+            <span>{count} online</span>
+          </div>
+          <span
+            aria-hidden="true"
+            style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}
+          >
+            ↻ {countdown}s
+          </span>
+          <button
+            onClick={refreshAll}
+            aria-label="Sync data"
+            style={{
+              background: "none",
+              border: "1px solid var(--line2)",
+              borderRadius: 20,
+              color: "var(--muted)",
+              ...MONO,
+              fontSize: 10,
+              padding: "5px 14px",
+              cursor: "pointer",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--green)";
+              e.currentTarget.style.color = "var(--green)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--line2)";
+              e.currentTarget.style.color = "var(--muted)";
+            }}
+          >
+            sync
+          </button>
+        </div>
+      </header>
+
+      {/* ── Page content ── */}
+      <main id="main-content" className="page-content">
+        {/* KPI row */}
+        <div
+          className="fade-up d1"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4,1fr)",
+            gap: 10,
+            marginBottom: 14,
+          }}
+        >
+          {/* FIX #3: pass color directly to AnimatedNumber — no more broken <style> injection */}
+          <div className="card" style={{ padding: "18px 18px 16px" }}>
+            <p style={LABEL}>Players online</p>
+            <AnimatedNumber
+              value={loading ? "—" : count}
+              large
+              color="var(--green)"
+            />
             <p
               style={{
                 ...MONO,
                 fontSize: 10,
                 color: "var(--muted)",
-                marginTop: 14,
-                letterSpacing: "0.05em",
+                marginTop: 8,
               }}
             >
-              of {maxSlots} slots · {fillPct}% capacity
+              of {maxSlots} · {fillPct}%
             </p>
-            {/* Decorative capacity bar */}
             <div
               aria-hidden="true"
               style={{
-                marginTop: 12,
+                marginTop: 10,
                 height: 2,
                 background: "var(--line2)",
                 borderRadius: 1,
@@ -348,129 +490,114 @@ export default function Dashboard() {
                   height: "100%",
                   width: `${fillPct}%`,
                   background:
-                    "linear-gradient(90deg, var(--green), rgba(61,220,132,0.6))",
+                    "linear-gradient(90deg,var(--green),rgba(61,220,132,0.5))",
                   borderRadius: 1,
-                  transition: "width 1.4s cubic-bezier(0.22,1,0.36,1)",
+                  transition: "width 1.2s ease",
                 }}
               />
             </div>
           </div>
 
-          {/* Period peak */}
-          <div
-            className="hero-cell"
-            style={{
-              background: "var(--bg2)",
-              padding: "28px 24px",
-              borderLeft: "1px solid var(--line)",
-            }}
-          >
+          <div className="card" style={{ padding: "18px 18px 16px" }}>
             <p style={LABEL}>
               {filterMode === "range"
-                ? "range peak"
+                ? "Range peak"
                 : activePreset >= 24
                   ? `${activePreset / 24}d peak`
                   : `${activePreset}h peak`}
             </p>
-            <AnimatedNumber value={loading ? "—" : (summary.peak ?? "—")} />
-            <p
-              style={{
-                ...MONO,
-                fontSize: 10,
-                color: "var(--muted)",
-                marginTop: 12,
-                letterSpacing: "0.05em",
-              }}
-            >
-              highest recorded
-            </p>
-            {summary.avg != null && summary.peak != null && (
-              <div aria-hidden="true" style={{ marginTop: 12 }}>
-                <div
-                  style={{
-                    ...MONO,
-                    fontSize: 8,
-                    color: "var(--muted)",
-                    letterSpacing: "0.1em",
-                    marginBottom: 4,
-                  }}
-                >
-                  avg / peak
-                </div>
-                <div
-                  style={{
-                    height: 2,
-                    background: "var(--line2)",
-                    borderRadius: 1,
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${Math.round((summary.avg / summary.peak) * 100)}%`,
-                      background: "var(--line3)",
-                      borderRadius: 1,
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* All-time peak */}
-          <div
-            className="hero-cell"
-            style={{
-              background: "var(--bg2)",
-              padding: "28px 24px",
-              borderLeft: "1px solid var(--line)",
-            }}
-          >
-            <p style={LABEL}>all-time peak</p>
             <AnimatedNumber
-              value={loading ? "—" : peakStats.allTimePeak || "—"}
+              value={loading ? "—" : (summary.peak ?? "—")}
+              color="#ffffff"
             />
             <p
               style={{
                 ...MONO,
                 fontSize: 10,
                 color: "var(--muted)",
-                marginTop: 12,
-                letterSpacing: "0.05em",
+                marginTop: 8,
               }}
             >
-              {peakStats.trackingSince
-                ? `since ${new Date(peakStats.trackingSince).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}`
-                : "since tracking began"}
+              highest recorded
+            </p>
+          </div>
+
+          <div className="card" style={{ padding: "18px 18px 16px" }}>
+            <p style={LABEL}>7d avg</p>
+            <AnimatedNumber
+              value={loading ? "—" : (sevenDayAvg ?? "—")}
+              color="#ffffff"
+            />
+            <p
+              style={{
+                ...MONO,
+                fontSize: 10,
+                color: "var(--muted)",
+                marginTop: 8,
+              }}
+            >
+              daily average
+            </p>
+          </div>
+
+          <div className="card" style={{ padding: "18px 18px 16px" }}>
+            <p style={LABEL}>Uptime</p>
+            <AnimatedNumber
+              value={uptime.uptimePct != null ? `${uptime.uptimePct}%` : "—"}
+              color={
+                uptime.uptimePct >= 99
+                  ? "var(--green)"
+                  : uptime.uptimePct >= 95
+                    ? "#f5a623"
+                    : uptime.uptimePct != null
+                      ? "var(--red)"
+                      : "#fff"
+              }
+            />
+            <p
+              style={{
+                ...MONO,
+                fontSize: 10,
+                color: "var(--muted)",
+                marginTop: 8,
+              }}
+            >
+              7 days
             </p>
           </div>
         </div>
 
-        {/* ── Chart ── */}
-        <div className="card fade-up d3" style={{ marginBottom: 12 }}>
+        {/* Chart */}
+        <div
+          className="card fade-up d2"
+          style={{ marginBottom: 14, overflow: "hidden" }}
+        >
           <div
-            className="filter-row"
             style={{
-              padding: "18px 20px 0",
+              padding: "16px 20px 0",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 10,
               flexWrap: "wrap",
+              gap: 10,
             }}
           >
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: 15,
-                letterSpacing: "0.1em",
-                color: "#fff",
-                flexShrink: 0,
-              }}
-            >
-              PLAYER COUNT
-            </span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <span
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 14,
+                  letterSpacing: "0.1em",
+                  color: "#fff",
+                }}
+              >
+                PLAYER COUNT
+              </span>
+              {/* FIX #1: show timezone in chart header */}
+              <span style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
+                {tzShort}
+              </span>
+            </div>
 
             <div
               style={{
@@ -480,10 +607,9 @@ export default function Dashboard() {
                 flexWrap: "wrap",
               }}
             >
-              {/* Preset tabs */}
               <div
                 role="group"
-                aria-label="Time range presets"
+                aria-label="Time range"
                 style={{ display: "flex", gap: 3 }}
               >
                 {PRESETS.map((p) => (
@@ -503,20 +629,14 @@ export default function Dashboard() {
 
               <div
                 aria-hidden="true"
-                style={{
-                  width: 1,
-                  height: 14,
-                  background: "var(--line2)",
-                  flexShrink: 0,
-                }}
+                style={{ width: 1, height: 14, background: "var(--line2)" }}
               />
 
-              {/* FIX: date inputs now have visible <label> elements */}
               <div
                 className="date-row"
                 style={{
                   display: "flex",
-                  alignItems: "center",
+                  alignItems: "flex-end",
                   gap: 6,
                   flexWrap: "wrap",
                 }}
@@ -541,26 +661,24 @@ export default function Dashboard() {
                     type="date"
                     value={fromDate}
                     max={toDate}
-                    aria-label="Filter start date"
+                    aria-label="Start date"
                     onChange={(e) => {
                       setFromDate(e.target.value);
                       setRangeError("");
                     }}
                   />
                 </div>
-
                 <span
                   aria-hidden="true"
                   style={{
                     ...MONO,
                     fontSize: 10,
                     color: "var(--muted)",
-                    marginTop: 14,
+                    paddingBottom: 8,
                   }}
                 >
                   →
                 </span>
-
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 3 }}
                 >
@@ -582,33 +700,25 @@ export default function Dashboard() {
                     value={toDate}
                     min={fromDate}
                     max={toDateInput(new Date())}
-                    aria-label="Filter end date"
+                    aria-label="End date"
                     onChange={(e) => {
                       setToDate(e.target.value);
                       setRangeError("");
                     }}
                   />
                 </div>
-
                 <button
-                  onClick={applyDateRange}
-                  aria-label="Apply date range filter"
+                  onClick={applyRange}
+                  aria-label="Apply range"
                   className={`btn ${filterMode === "range" ? "btn-green" : ""}`}
-                  style={{ padding: "5px 12px", fontSize: 10, marginTop: 16 }}
+                  style={{ padding: "5px 12px", fontSize: 10, marginBottom: 0 }}
                 >
                   apply
                 </button>
-
                 {rangeError && (
                   <span
                     role="alert"
-                    style={{
-                      ...MONO,
-                      fontSize: 10,
-                      color: "var(--red)",
-                      letterSpacing: "0.04em",
-                      marginTop: 16,
-                    }}
+                    style={{ ...MONO, fontSize: 10, color: "var(--red)" }}
                   >
                     {rangeError}
                   </span>
@@ -617,8 +727,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Chart canvas */}
-          <div style={{ height: 210, padding: "14px 8px 0" }}>
+          <div style={{ height: 210, padding: "12px 8px 0" }}>
             {chartData.length === 0 ? (
               <div
                 style={{
@@ -630,28 +739,9 @@ export default function Dashboard() {
                   gap: 8,
                 }}
               >
-                <p
-                  style={{
-                    ...MONO,
-                    fontSize: 11,
-                    color: "var(--muted)",
-                    letterSpacing: "0.1em",
-                  }}
-                >
+                <p style={{ ...MONO, fontSize: 11, color: "var(--muted)" }}>
                   {loading ? "loading..." : "no data for this range"}
                 </p>
-                {!loading && (
-                  <p
-                    style={{
-                      ...MONO,
-                      fontSize: 9,
-                      color: "var(--muted)",
-                      letterSpacing: "0.08em",
-                    }}
-                  >
-                    data accumulates over time via cron
-                  </p>
-                )}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -661,7 +751,11 @@ export default function Dashboard() {
                 >
                   <defs>
                     <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3ddc84" stopOpacity={0.2} />
+                      <stop
+                        offset="0%"
+                        stopColor="#3ddc84"
+                        stopOpacity={0.18}
+                      />
                       <stop
                         offset="100%"
                         stopColor="#3ddc84"
@@ -677,7 +771,7 @@ export default function Dashboard() {
                   <XAxis
                     dataKey="t"
                     tick={{
-                      fill: "#888888",
+                      fill: "#888",
                       fontSize: 9,
                       fontFamily: "'DM Mono',monospace",
                       fontWeight: 300,
@@ -688,7 +782,7 @@ export default function Dashboard() {
                   />
                   <YAxis
                     tick={{
-                      fill: "#888888",
+                      fill: "#888",
                       fontSize: 9,
                       fontFamily: "'DM Mono',monospace",
                       fontWeight: 300,
@@ -698,9 +792,13 @@ export default function Dashboard() {
                     domain={[0, maxSlots]}
                     width={26}
                   />
+                  {/* FIX #2: use tFull for tooltip label (full datetime) */}
                   <Tooltip
                     content={<ChartTooltip />}
                     cursor={{ stroke: "rgba(61,220,132,0.15)", strokeWidth: 1 }}
+                    labelFormatter={(_, payload) =>
+                      payload?.[0]?.payload?.tFull || ""
+                    }
                   />
                   <ReferenceLine
                     y={maxSlots}
@@ -721,20 +819,19 @@ export default function Dashboard() {
                       strokeWidth: 4,
                     }}
                     animationDuration={700}
-                    animationEasing="ease-out"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             )}
           </div>
 
-          {/* Status strip — FIX: label text now uses --muted (#888) not --muted2 */}
+          {/* Status strip */}
           <div
             className="status-bar"
             style={{
               display: "flex",
               gap: 24,
-              padding: "12px 22px 14px",
+              padding: "10px 22px 14px",
               borderTop: "1px solid var(--line)",
               marginTop: 8,
               overflowX: "auto",
@@ -748,14 +845,11 @@ export default function Dashboard() {
               },
               { label: "updated", value: fmtAge(live?.ageSeconds) },
               { label: "points", value: summary.dataPoints ?? "—" },
-              {
-                label: "avg",
-                value: summary.avg != null ? `${summary.avg}` : "—",
-              },
+              { label: "avg", value: summary.avg ?? "—" },
               { label: "capacity", value: `${maxSlots} slots` },
+              { label: "timezone", value: tzShort },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flexShrink: 0 }}>
-                {/* FIX: was color: '#222' / --muted2 which failed contrast — now --muted (#888) */}
                 <div
                   style={{
                     ...MONO,
@@ -783,19 +877,69 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Peak insights ── */}
+        {/* Peak insights */}
         <PeakSummary peakStats={peakStats} summary={summary} />
 
-        {/* ── Bottom: heatmap + daily bars ── */}
-        <div className="bottom-grid" style={{ marginBottom: 12 }}>
+        {/* Bottom grid */}
+        <div className="bottom-grid" style={{ marginBottom: 14 }}>
           <HourlyHeatmap hourly={peakStats.hourly} />
           <DailyPeakBar daily={peakStats.daily} maxSlots={maxSlots} />
         </div>
 
-        {/* ── Uptime tracker ── */}
+        {/* Uptime */}
         <UptimeTracker uptime={uptime} />
 
-        <Footer />
+        {/* Footer */}
+        <div
+          style={{
+            marginTop: 32,
+            paddingTop: 16,
+            borderTop: "1px solid var(--line)",
+            display: "flex",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <span
+            style={{
+              ...MONO,
+              fontSize: 9,
+              color: "var(--muted)",
+              letterSpacing: "0.08em",
+            }}
+          >
+            data via cfx.re public api · polls every 30s · times shown in{" "}
+            {userTz} · not affiliated with nopixel
+          </span>
+          <div style={{ display: "flex", gap: 16 }}>
+            {[
+              { href: "/privacy", label: "Privacy" },
+              { href: "/terms", label: "Terms" },
+              { href: "/contact", label: "Contact" },
+            ].map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                style={{
+                  ...MONO,
+                  fontSize: 9,
+                  color: "var(--muted)",
+                  textDecoration: "none",
+                  transition: "color 0.2s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = "var(--text)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = "var(--muted)")
+                }
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
       </main>
     </>
   );
