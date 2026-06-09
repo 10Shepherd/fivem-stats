@@ -83,7 +83,8 @@ export default function Privacy() {
             This Privacy Policy explains how FiveM Stats ("we", "our", or "the
             site") collects, uses, and protects information when you visit this
             website. We are an independent, community-run statistics tracker and
-            are not affiliated with NoPixel Studios Pty Ltd.
+            are not affiliated with, endorsed by, or connected to any of the
+            FiveM servers we track or their operators.
           </P>
         </div>
 
@@ -192,6 +193,14 @@ export default function Privacy() {
               delete. If you have concerns about data relating to you (for
               example, your in-game name appearing in our records), please
               contact us and we will address your request promptly.
+            </P>
+          </Section>
+
+          <Section title="SERVER OPERATORS">
+            <P>
+              If you operate a FiveM server tracked by this site and wish to
+              have it removed, please contact us using the details below. We
+              will deactivate tracking for your server on request.
             </P>
           </Section>
 

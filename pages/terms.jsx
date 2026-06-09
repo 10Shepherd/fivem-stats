@@ -95,14 +95,14 @@ export default function Terms() {
           <Section title="ABOUT THIS SITE">
             <P>
               FiveM Stats is an independent, community-built tool that displays
-              publicly available server statistics for the NoPixel FiveM server.
-              This site is{" "}
+              publicly available server statistics for FiveM servers. This site
+              is{" "}
               <strong style={{ color: "var(--text)", fontWeight: 500 }}>
-                not affiliated with, endorsed by, or connected to NoPixel
-                Studios Pty Ltd
+                not affiliated with, endorsed by, or connected to any of the
+                servers it tracks, their operators, or Cfx.re
               </strong>{" "}
-              in any way. All trademarks and brand names belong to their
-              respective owners.
+              in any way. All trademarks, server names, and brand names belong
+              to their respective owners.
             </P>
           </Section>
 
@@ -123,7 +123,7 @@ export default function Terms() {
                 "Attempt to scrape, crawl, or automatically harvest data from this site at a rate that places undue load on our infrastructure",
                 "Use the site for any unlawful purpose or in violation of any applicable laws or regulations",
                 "Attempt to gain unauthorised access to any part of the site or its underlying infrastructure",
-                "Misrepresent this site as an official NoPixel product or service",
+                "Misrepresent this site as an official product or service of any FiveM server or its operators",
                 "Redistribute or resell data from this site without permission",
               ].map((item) => (
                 <li
@@ -156,14 +156,23 @@ export default function Terms() {
             </P>
           </Section>
 
+          <Section title="SERVER LISTINGS">
+            <P>
+              Servers tracked on this site are added based on their public
+              listing in the FiveM server browser. If you operate a server and
+              wish to have it removed from this site, please contact us and we
+              will deactivate tracking for it promptly.
+            </P>
+          </Section>
+
           <Section title="INTELLECTUAL PROPERTY">
             <P>
               The source code, design, and content of FiveM Stats (excluding
               third-party trademarks and API data) are the property of the
               site's creator. You may not copy, reproduce, or redistribute the
-              site's design or codebase without express permission. The NoPixel
-              name, logo, and associated branding are the property of NoPixel
-              Studios Pty Ltd.
+              site's design or codebase without express permission. Server
+              names, logos, and associated branding are the property of their
+              respective owners.
             </P>
           </Section>
 
