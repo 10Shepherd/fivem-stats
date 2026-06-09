@@ -78,13 +78,16 @@ const PRESETS = [
 ];
 
 export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
-  const today = new Date();
-  const weekAgo = new Date(today);
-  weekAgo.setDate(today.getDate() - 7);
-
   const [userTz, setUserTz] = useState("UTC");
+  const [todayStr, setTodayStr] = useState("");
   useEffect(() => {
     setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    const now = new Date();
+    const week = new Date(now);
+    week.setDate(now.getDate() - 7);
+    setTodayStr(toDateInput(now));
+    setFromDate(toDateInput(week));
+    setToDate(toDateInput(now));
   }, []);
 
   const [activeServer, setActiveServer] = useState(propServer);
@@ -97,15 +100,15 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
   const [loading, setLoading] = useState(true);
   const [filterMode, setFilterMode] = useState("preset");
   const [activePreset, setActivePreset] = useState(24);
-  const [fromDate, setFromDate] = useState(toDateInput(weekAgo));
-  const [toDate, setToDate] = useState(toDateInput(today));
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [rangeError, setRangeError] = useState("");
 
   const serverRef = useRef(activeServer);
   const filterRef = useRef("preset");
   const presetRef = useRef(24);
-  const fromRef = useRef(toDateInput(weekAgo));
-  const toRef = useRef(toDateInput(today));
+  const fromRef = useRef("");
+  const toRef = useRef("");
   useEffect(() => {
     serverRef.current = activeServer;
   }, [activeServer]);
@@ -376,7 +379,7 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
                     type="date"
                     value={toDate}
                     min={fromDate}
-                    max={toDateInput(new Date())}
+                    max={todayStr}
                     aria-label="End date"
                     onChange={(e) => {
                       setToDate(e.target.value);
