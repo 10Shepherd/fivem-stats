@@ -3,7 +3,7 @@
 Live multi-server player count tracker for FiveM servers. RPStats-style sidebar layout with real-time charts, uptime tracking, peak analytics, and date range filtering. All times displayed in the visitor's local timezone.
 
 **Live demo:** your Vssercel URL  
-**Tracking:** server `3lamjz` (NoPixel Whitelisted) by default
+**Tracking:** server `Code`
 
 ---
 

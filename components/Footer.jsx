@@ -48,7 +48,7 @@ export default function Footer() {
               letterSpacing: "0.08em",
             }}
           >
-            not affiliated with nopixel studios · independent tracker
+            not affiliated with the servers listed · independent tracker
           </span>
         </div>
 

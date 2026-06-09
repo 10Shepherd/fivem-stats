@@ -1,5 +1,5 @@
 {
-  "name": "nopixel-stats-bot",
+  "name": "stats-bot",
   "version": "1.0.0",
   "main": "bot.js",
   "scripts": {

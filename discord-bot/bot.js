@@ -1,5 +1,5 @@
 /**
- * NoPixel Stats Discord Bot
+ * Stats Discord Bot
  * Posts live player count to a Discord channel every hour
  *
  * Setup:

@@ -61,7 +61,7 @@ export default function Contact() {
             email: form.email,
             topic: form.topic,
             message: form.message,
-            _subject: `[NoPixel Stats] ${form.topic}`,
+            _subject: `[Fivem Stats] ${form.topic}`,
           }),
         },
       );
