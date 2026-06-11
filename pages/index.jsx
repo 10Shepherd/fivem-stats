@@ -201,7 +201,9 @@ export default function Dashboard({
   useEffect(() => {
     setLoading(true);
     setLive(null);
+    setPeakStats({ daily: [], hourly: [], allTimePeak: 0 }); // clear stale peak from previous server
     setHistory({ rows: [], summary: {}, bucket: "hour" });
+    announcedPeakRef.current = 0; // reset so the new server gets a fresh slate
     refreshAll();
   }, [activeServer]); // eslint-disable-line
 
@@ -284,21 +286,23 @@ export default function Dashboard({
 
   // Peak notification — only fires when the live count BREAKS the stored
   // all-time record (strictly greater than), and only once per new high.
-  // announcedPeakRef remembers the last count we already notified about
-  // so repeated 30s refreshes at the same count don't re-trigger the banner.
+  // Guards: !loading ensures both live AND peakStats are fully loaded for
+  // the current server before we evaluate — prevents false triggers during
+  // server switches where live loads faster than peakStats.
   useEffect(() => {
     if (
+      !loading && // both live + peakStats fully loaded
       live?.playerCount > 0 &&
       peakStats.allTimePeak > 0 &&
       live.playerCount > peakStats.allTimePeak && // must BEAT the record, not just match it
       live.playerCount > announcedPeakRef.current // must be a count we haven't announced yet
     ) {
-      announcedPeakRef.current = live.playerCount; // remember this level so we don't repeat it
+      announcedPeakRef.current = live.playerCount; // remember so we don't repeat it
       setShowPeakBanner(true);
       const t = setTimeout(() => setShowPeakBanner(false), 15000);
       return () => clearTimeout(t);
     }
-  }, [live?.playerCount, peakStats.allTimePeak]);
+  }, [live?.playerCount, peakStats.allTimePeak, loading]);
 
   function applyRange() {
     if (!fromDate || !toDate) {
@@ -458,7 +462,7 @@ export default function Dashboard({
               letterSpacing: "0.06em",
             }}
           >
-            🔥 New all-time record! {count} players online — previous best was{" "}
+            New all-time record! {count} players online — previous best was{" "}
             {peakStats.allTimePeak}
           </span>
           <button
