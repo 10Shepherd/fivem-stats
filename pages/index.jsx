@@ -69,7 +69,9 @@ function ChartTooltip({ active, payload, label }) {
         fontWeight: 300,
       }}
     >
-      <div style={{ color: "#888", marginBottom: 4, fontSize: 10 }}>{label}</div>
+      <div style={{ color: "#888", marginBottom: 4, fontSize: 10 }}>
+        {label}
+      </div>
       <div style={{ color: "var(--green)", fontWeight: 400 }}>
         {payload[0].value}{" "}
         <span style={{ color: "#888", fontWeight: 300 }}>players</span>
@@ -125,8 +127,16 @@ export default function Dashboard({
   const [activeServer, setActiveServer] = useState(propServer);
   const [serverInfo, setServerInfo] = useState(null);
   const [live, setLive] = useState(null);
-  const [history, setHistory] = useState({ rows: [], summary: {}, bucket: "hour" });
-  const [peakStats, setPeakStats] = useState({ daily: [], hourlyByDay: [], allTimePeak: 0 });
+  const [history, setHistory] = useState({
+    rows: [],
+    summary: {},
+    bucket: "hour",
+  });
+  const [peakStats, setPeakStats] = useState({
+    daily: [],
+    hourlyByDay: [],
+    allTimePeak: 0,
+  });
   const [uptime, setUptime] = useState({});
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState(null);
@@ -150,7 +160,9 @@ export default function Dashboard({
     if (q.server) {
       setActiveServer(q.server);
       // Sync Layout sidebar highlight so the correct server is highlighted
-      window.dispatchEvent(new CustomEvent("serverChangeFromPage", { detail: { code: q.server } }));
+      window.dispatchEvent(
+        new CustomEvent("serverChangeFromPage", { detail: { code: q.server } }),
+      );
     }
     if (q.hours) {
       setActivePreset(parseInt(q.hours) || 24);
@@ -172,11 +184,21 @@ export default function Dashboard({
   const toRef = useRef("");
   const announcedPeakRef = useRef(0);
 
-  useEffect(() => { serverRef.current = activeServer; }, [activeServer]);
-  useEffect(() => { filterRef.current = filterMode; }, [filterMode]);
-  useEffect(() => { presetRef.current = activePreset; }, [activePreset]);
-  useEffect(() => { fromRef.current = fromDate; }, [fromDate]);
-  useEffect(() => { toRef.current = toDate; }, [toDate]);
+  useEffect(() => {
+    serverRef.current = activeServer;
+  }, [activeServer]);
+  useEffect(() => {
+    filterRef.current = filterMode;
+  }, [filterMode]);
+  useEffect(() => {
+    presetRef.current = activePreset;
+  }, [activePreset]);
+  useEffect(() => {
+    fromRef.current = fromDate;
+  }, [fromDate]);
+  useEffect(() => {
+    toRef.current = toDate;
+  }, [toDate]);
 
   useEffect(() => {
     const fn = (e) => setActiveServer(e.detail.code);
@@ -273,7 +295,10 @@ export default function Dashboard({
 
   useEffect(() => {
     setCountdown(Math.round(REFRESH_MS / 1000));
-    const tick = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
+    const tick = setInterval(
+      () => setCountdown((c) => Math.max(0, c - 1)),
+      1000,
+    );
     return () => clearInterval(tick);
   }, [lastSync]);
 
@@ -293,9 +318,18 @@ export default function Dashboard({
   }, [live?.playerCount, peakStats.allTimePeak, loading]);
 
   function applyRange() {
-    if (!fromDate || !toDate) { setRangeError("select both"); return; }
-    if (new Date(fromDate) > new Date(toDate)) { setRangeError("start before end"); return; }
-    if ((new Date(toDate) - new Date(fromDate)) / 86400000 > 90) { setRangeError("max 90 days"); return; }
+    if (!fromDate || !toDate) {
+      setRangeError("select both");
+      return;
+    }
+    if (new Date(fromDate) > new Date(toDate)) {
+      setRangeError("start before end");
+      return;
+    }
+    if ((new Date(toDate) - new Date(fromDate)) / 86400000 > 90) {
+      setRangeError("max 90 days");
+      return;
+    }
     setRangeError("");
     setFilterMode("range");
     fetchHistory({ from: fromDate, to: toDate });
@@ -316,7 +350,10 @@ export default function Dashboard({
     const url = `${window.location.origin}/?${params}`;
     navigator.clipboard
       .writeText(url)
-      .then(() => { setShareMsg("link copied!"); setTimeout(() => setShareMsg(""), 2000); })
+      .then(() => {
+        setShareMsg("link copied!");
+        setTimeout(() => setShareMsg(""), 2000);
+      })
       .catch(() => {});
   }
 
@@ -332,7 +369,9 @@ export default function Dashboard({
     count: r.count,
   }));
   const sevenDayAvg = peakStats.daily?.length
-    ? Math.round(peakStats.daily.reduce((a, d) => a + d.avg, 0) / peakStats.daily.length)
+    ? Math.round(
+        peakStats.daily.reduce((a, d) => a + d.avg, 0) / peakStats.daily.length,
+      )
     : null;
   const serverName = serverInfo?.name || activeServer;
 
@@ -349,10 +388,15 @@ export default function Dashboard({
   const tzShort = (() => {
     try {
       return new Date()
-        .toLocaleTimeString("en-US", { timeZone: userTz, timeZoneName: "short" })
+        .toLocaleTimeString("en-US", {
+          timeZone: userTz,
+          timeZoneName: "short",
+        })
         .split(" ")
         .pop();
-    } catch { return "UTC"; }
+    } catch {
+      return "UTC";
+    }
   })();
 
   return (
@@ -385,23 +429,32 @@ export default function Dashboard({
               : "Live player counts, uptime, peak analytics and heatmaps for FiveM servers."
           }
         />
-        <meta property="og:image" content={`${domain}/assets/icon-512.png`} />
+        <meta property="og:image" content={`${domain}/assets/icon-192.png`} />
         <meta property="og:image:type" content="image/png" />
-        <meta property="og:image:width" content="512" />
-        <meta property="og:image:height" content="512" />
-        <meta property="og:url" content={ssrServerName ? `${domain}/?server=${propServer}` : `${domain}/`} />
+        <meta property="og:image:width" content="192" />
+        <meta property="og:image:height" content="192" />
+        <meta
+          property="og:url"
+          content={
+            ssrServerName ? `${domain}/?server=${propServer}` : `${domain}/`
+          }
+        />
         <meta name="twitter:card" content="summary" />
         <meta
           name="twitter:title"
-          content={ssrServerName ? `FiveM Stats — ${ssrServerName}` : "FiveM Stats"}
+          content={
+            ssrServerName ? `FiveM Stats — ${ssrServerName}` : "FiveM Stats"
+          }
         />
         <meta
           name="twitter:description"
           content={
-            ssrServerName ? `Live stats for ${ssrServerName}` : "Live FiveM server statistics"
+            ssrServerName
+              ? `Live stats for ${ssrServerName}`
+              : "Live FiveM server statistics"
           }
         />
-        <meta name="twitter:image" content={`${domain}/assets/icon-512.png`} />
+        <meta name="twitter:image" content={`${domain}/assets/icon-192.png`} />
       </Head>
 
       {/* Peak banner */}
@@ -419,12 +472,27 @@ export default function Dashboard({
           }}
         >
           <span style={{ fontSize: 16 }}>🔥</span>
-          <span style={{ ...MONO, fontSize: 11, color: "var(--green)", letterSpacing: "0.06em" }}>
-            New all-time record! {count} players online — previous best was {peakStats.allTimePeak}
+          <span
+            style={{
+              ...MONO,
+              fontSize: 11,
+              color: "var(--green)",
+              letterSpacing: "0.06em",
+            }}
+          >
+            New all-time record! {count} players online — previous best was{" "}
+            {peakStats.allTimePeak}
           </span>
           <button
             onClick={() => setShowPeakBanner(false)}
-            style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 14, marginLeft: 8 }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--muted)",
+              cursor: "pointer",
+              fontSize: 14,
+              marginLeft: 8,
+            }}
           >
             ✕
           </button>
@@ -434,7 +502,15 @@ export default function Dashboard({
       <header className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 17, letterSpacing: "0.08em", color: "#fff", lineHeight: 1.1 }}>
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 17,
+                letterSpacing: "0.08em",
+                color: "#fff",
+                lineHeight: 1.1,
+              }}
+            >
               {serverName}
             </div>
             <div style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
@@ -442,7 +518,14 @@ export default function Dashboard({
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
           <div
             style={{
               display: "flex",
@@ -464,15 +547,25 @@ export default function Dashboard({
                 height: 6,
                 borderRadius: "50%",
                 background: online ? "var(--green)" : "var(--red)",
-                animation: online ? "pulseGreen 2s infinite" : "blink 2.5s infinite",
+                animation: online
+                  ? "pulseGreen 2s infinite"
+                  : "blink 2.5s infinite",
               }}
             />
             <span>{count} online</span>
           </div>
-          <span aria-hidden="true" style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
+          <span
+            aria-hidden="true"
+            style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}
+          >
             ↻ {countdown}s
           </span>
-          <button onClick={handleShare} aria-label="Share link" className="btn" style={{ padding: "5px 12px", fontSize: 10 }}>
+          <button
+            onClick={handleShare}
+            aria-label="Share link"
+            className="btn"
+            style={{ padding: "5px 12px", fontSize: 10 }}
+          >
             {shareMsg || "share"}
           </button>
           <button
@@ -489,8 +582,14 @@ export default function Dashboard({
               cursor: "pointer",
               transition: "all 0.2s",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--green)"; e.currentTarget.style.color = "var(--green)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--line2)"; e.currentTarget.style.color = "var(--muted)"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--green)";
+              e.currentTarget.style.color = "var(--green)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--line2)";
+              e.currentTarget.style.color = "var(--muted)";
+            }}
           >
             sync
           </button>
@@ -506,15 +605,32 @@ export default function Dashboard({
             <div className="card" style={{ padding: "18px 18px 16px" }}>
               <p style={LABEL}>Players online</p>
               <AnimatedNumber value={count} large color="var(--green)" />
-              <p style={{ ...MONO, fontSize: 10, color: "var(--muted)", marginTop: 8 }}>
+              <p
+                style={{
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--muted)",
+                  marginTop: 8,
+                }}
+              >
                 of {maxSlots} · {fillPct}%
               </p>
-              <div aria-hidden="true" style={{ marginTop: 10, height: 2, background: "var(--line2)", borderRadius: 1, overflow: "hidden" }}>
+              <div
+                aria-hidden="true"
+                style={{
+                  marginTop: 10,
+                  height: 2,
+                  background: "var(--line2)",
+                  borderRadius: 1,
+                  overflow: "hidden",
+                }}
+              >
                 <div
                   style={{
                     height: "100%",
                     width: `${fillPct}%`,
-                    background: "linear-gradient(90deg,var(--green),rgba(61,220,132,0.5))",
+                    background:
+                      "linear-gradient(90deg,var(--green),rgba(61,220,132,0.5))",
                     borderRadius: 1,
                     transition: "width 1.2s ease",
                   }}
@@ -526,16 +642,34 @@ export default function Dashboard({
                 {filterMode === "range"
                   ? "Range peak"
                   : activePreset >= 24
-                  ? `${activePreset / 24}d peak`
-                  : `${activePreset}h peak`}
+                    ? `${activePreset / 24}d peak`
+                    : `${activePreset}h peak`}
               </p>
               <AnimatedNumber value={summary.peak ?? "—"} color="#ffffff" />
-              <p style={{ ...MONO, fontSize: 10, color: "var(--muted)", marginTop: 8 }}>highest recorded</p>
+              <p
+                style={{
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--muted)",
+                  marginTop: 8,
+                }}
+              >
+                highest recorded
+              </p>
             </div>
             <div className="card" style={{ padding: "18px 18px 16px" }}>
               <p style={LABEL}>7d avg</p>
               <AnimatedNumber value={sevenDayAvg ?? "—"} color="#ffffff" />
-              <p style={{ ...MONO, fontSize: 10, color: "var(--muted)", marginTop: 8 }}>daily average</p>
+              <p
+                style={{
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--muted)",
+                  marginTop: 8,
+                }}
+              >
+                daily average
+              </p>
             </div>
             <div className="card" style={{ padding: "18px 18px 16px" }}>
               <p style={LABEL}>Uptime</p>
@@ -545,13 +679,22 @@ export default function Dashboard({
                   uptime.uptimePct >= 99
                     ? "var(--green)"
                     : uptime.uptimePct >= 95
-                    ? "#f5a623"
-                    : uptime.uptimePct != null
-                    ? "var(--red)"
-                    : "#fff"
+                      ? "#f5a623"
+                      : uptime.uptimePct != null
+                        ? "var(--red)"
+                        : "#fff"
                 }
               />
-              <p style={{ ...MONO, fontSize: 10, color: "var(--muted)", marginTop: 8 }}>7 days</p>
+              <p
+                style={{
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--muted)",
+                  marginTop: 8,
+                }}
+              >
+                7 days
+              </p>
             </div>
           </div>
         )}
@@ -560,7 +703,10 @@ export default function Dashboard({
         {loading ? (
           <SkeletonChart />
         ) : (
-          <div className="card fade-up d2" style={{ marginBottom: 14, overflow: "hidden" }}>
+          <div
+            className="card fade-up d2"
+            style={{ marginBottom: 14, overflow: "hidden" }}
+          >
             <div
               style={{
                 padding: "16px 20px 0",
@@ -572,18 +718,40 @@ export default function Dashboard({
               }}
             >
               <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: 14, letterSpacing: "0.1em", color: "#fff" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 14,
+                    letterSpacing: "0.1em",
+                    color: "#fff",
+                  }}
+                >
                   PLAYER COUNT
                 </span>
-                <span style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>{tzShort}</span>
+                <span style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
+                  {tzShort}
+                </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <div role="group" aria-label="Time range" style={{ display: "flex", gap: 3 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  role="group"
+                  aria-label="Time range"
+                  style={{ display: "flex", gap: 3 }}
+                >
                   {PRESETS.map((p) => (
                     <button
                       key={p.hours}
                       onClick={() => selectPreset(p.hours)}
-                      aria-pressed={filterMode === "preset" && activePreset === p.hours}
+                      aria-pressed={
+                        filterMode === "preset" && activePreset === p.hours
+                      }
                       className={`btn ${filterMode === "preset" && activePreset === p.hours ? "btn-active" : ""}`}
                       style={{ padding: "4px 10px", fontSize: 10 }}
                     >
@@ -591,52 +759,163 @@ export default function Dashboard({
                     </button>
                   ))}
                 </div>
-                <div aria-hidden="true" style={{ width: 1, height: 14, background: "var(--line2)" }} />
-                <div className="date-row" style={{ display: "flex", alignItems: "flex-end", gap: 6, flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    <label htmlFor="date-from" style={{ ...MONO, fontSize: 8, letterSpacing: "0.12em", color: "var(--muted)", textTransform: "uppercase" }}>
+                <div
+                  aria-hidden="true"
+                  style={{ width: 1, height: 14, background: "var(--line2)" }}
+                />
+                <div
+                  className="date-row"
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-end",
+                    gap: 6,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 3 }}
+                  >
+                    <label
+                      htmlFor="date-from"
+                      style={{
+                        ...MONO,
+                        fontSize: 8,
+                        letterSpacing: "0.12em",
+                        color: "var(--muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
                       From
                     </label>
-                    <input id="date-from" type="date" value={fromDate} max={toDate} onChange={(e) => { setFromDate(e.target.value); setRangeError(""); }} />
+                    <input
+                      id="date-from"
+                      type="date"
+                      value={fromDate}
+                      max={toDate}
+                      onChange={(e) => {
+                        setFromDate(e.target.value);
+                        setRangeError("");
+                      }}
+                    />
                   </div>
-                  <span aria-hidden="true" style={{ ...MONO, fontSize: 10, color: "var(--muted)", paddingBottom: 8 }}>→</span>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    <label htmlFor="date-to" style={{ ...MONO, fontSize: 8, letterSpacing: "0.12em", color: "var(--muted)", textTransform: "uppercase" }}>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      ...MONO,
+                      fontSize: 10,
+                      color: "var(--muted)",
+                      paddingBottom: 8,
+                    }}
+                  >
+                    →
+                  </span>
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 3 }}
+                  >
+                    <label
+                      htmlFor="date-to"
+                      style={{
+                        ...MONO,
+                        fontSize: 8,
+                        letterSpacing: "0.12em",
+                        color: "var(--muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
                       To
                     </label>
-                    <input id="date-to" type="date" value={toDate} min={fromDate} max={todayStr} onChange={(e) => { setToDate(e.target.value); setRangeError(""); }} />
+                    <input
+                      id="date-to"
+                      type="date"
+                      value={toDate}
+                      min={fromDate}
+                      max={todayStr}
+                      onChange={(e) => {
+                        setToDate(e.target.value);
+                        setRangeError("");
+                      }}
+                    />
                   </div>
-                  <button onClick={applyRange} className={`btn ${filterMode === "range" ? "btn-green" : ""}`} style={{ padding: "5px 12px", fontSize: 10, marginBottom: 0 }}>
+                  <button
+                    onClick={applyRange}
+                    className={`btn ${filterMode === "range" ? "btn-green" : ""}`}
+                    style={{
+                      padding: "5px 12px",
+                      fontSize: 10,
+                      marginBottom: 0,
+                    }}
+                  >
                     apply
                   </button>
-                  {rangeError && <span role="alert" style={{ ...MONO, fontSize: 10, color: "var(--red)" }}>{rangeError}</span>}
+                  {rangeError && (
+                    <span
+                      role="alert"
+                      style={{ ...MONO, fontSize: 10, color: "var(--red)" }}
+                    >
+                      {rangeError}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
             <div style={{ height: 210, padding: "12px 8px 0" }}>
               {chartData.length === 0 ? (
-                <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <p style={{ ...MONO, fontSize: 11, color: "var(--muted)" }}>no data for this range</p>
+                <div
+                  style={{
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <p style={{ ...MONO, fontSize: 11, color: "var(--muted)" }}>
+                    no data for this range
+                  </p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                  <AreaChart
+                    data={chartData}
+                    margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+                  >
                     <defs>
                       <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3ddc84" stopOpacity={0.18} />
-                        <stop offset="100%" stopColor="#3ddc84" stopOpacity={0.01} />
+                        <stop
+                          offset="0%"
+                          stopColor="#3ddc84"
+                          stopOpacity={0.18}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#3ddc84"
+                          stopOpacity={0.01}
+                        />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="1 5" stroke="#1a1a1a" vertical={false} />
+                    <CartesianGrid
+                      strokeDasharray="1 5"
+                      stroke="#1a1a1a"
+                      vertical={false}
+                    />
                     <XAxis
                       dataKey="t"
-                      tick={{ fill: "#888", fontSize: 9, fontFamily: "'DM Mono',monospace", fontWeight: 300 }}
+                      tick={{
+                        fill: "#888",
+                        fontSize: 9,
+                        fontFamily: "'DM Mono',monospace",
+                        fontWeight: 300,
+                      }}
                       tickLine={false}
                       axisLine={{ stroke: "#1a1a1a" }}
                       interval="preserveStartEnd"
                     />
                     <YAxis
-                      tick={{ fill: "#888", fontSize: 9, fontFamily: "'DM Mono',monospace", fontWeight: 300 }}
+                      tick={{
+                        fill: "#888",
+                        fontSize: 9,
+                        fontFamily: "'DM Mono',monospace",
+                        fontWeight: 300,
+                      }}
                       tickLine={false}
                       axisLine={false}
                       domain={[0, maxSlots]}
@@ -644,10 +923,19 @@ export default function Dashboard({
                     />
                     <Tooltip
                       content={<ChartTooltip />}
-                      cursor={{ stroke: "rgba(61,220,132,0.15)", strokeWidth: 1 }}
-                      labelFormatter={(_, payload) => payload?.[0]?.payload?.tFull || ""}
+                      cursor={{
+                        stroke: "rgba(61,220,132,0.15)",
+                        strokeWidth: 1,
+                      }}
+                      labelFormatter={(_, payload) =>
+                        payload?.[0]?.payload?.tFull || ""
+                      }
                     />
-                    <ReferenceLine y={maxSlots} stroke="rgba(61,220,132,0.06)" strokeDasharray="4 6" />
+                    <ReferenceLine
+                      y={maxSlots}
+                      stroke="rgba(61,220,132,0.06)"
+                      strokeDasharray="4 6"
+                    />
                     <Area
                       type="monotone"
                       dataKey="count"
@@ -655,7 +943,12 @@ export default function Dashboard({
                       strokeWidth={1.5}
                       fill="url(#grad)"
                       dot={false}
-                      activeDot={{ r: 4, fill: "#3ddc84", stroke: "rgba(61,220,132,0.3)", strokeWidth: 4 }}
+                      activeDot={{
+                        r: 4,
+                        fill: "#3ddc84",
+                        stroke: "rgba(61,220,132,0.3)",
+                        strokeWidth: 4,
+                      }}
                       animationDuration={700}
                     />
                   </AreaChart>
@@ -674,7 +967,11 @@ export default function Dashboard({
               }}
             >
               {[
-                { label: "status", value: online ? "online" : "offline", color: online ? "var(--green)" : "var(--red)" },
+                {
+                  label: "status",
+                  value: online ? "online" : "offline",
+                  color: online ? "var(--green)" : "var(--red)",
+                },
                 { label: "updated", value: fmtAge(live?.ageSeconds) },
                 { label: "points", value: summary.dataPoints ?? "—" },
                 { label: "avg", value: summary.avg ?? "—" },
@@ -682,10 +979,26 @@ export default function Dashboard({
                 { label: "timezone", value: tzShort },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ flexShrink: 0 }}>
-                  <div style={{ ...MONO, fontSize: 8, letterSpacing: "0.14em", color: "var(--muted)", textTransform: "uppercase", marginBottom: 3 }}>
+                  <div
+                    style={{
+                      ...MONO,
+                      fontSize: 8,
+                      letterSpacing: "0.14em",
+                      color: "var(--muted)",
+                      textTransform: "uppercase",
+                      marginBottom: 3,
+                    }}
+                  >
                     {label}
                   </div>
-                  <div style={{ ...MONO, fontSize: 11, color: color || "var(--text)", letterSpacing: "0.04em" }}>
+                  <div
+                    style={{
+                      ...MONO,
+                      fontSize: 11,
+                      color: color || "var(--text)",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
                     {value}
                   </div>
                 </div>
@@ -695,15 +1008,26 @@ export default function Dashboard({
         )}
 
         <ErrorBoundary>
-          <PeakSummary peakStats={peakStats} summary={summary} userTz={userTz} />
+          <PeakSummary
+            peakStats={peakStats}
+            summary={summary}
+            userTz={userTz}
+          />
         </ErrorBoundary>
 
         <div className="bottom-grid" style={{ marginBottom: 14 }}>
           <ErrorBoundary>
-            <HourlyHeatmap hourlyByDay={peakStats.hourlyByDay || []} userTz={userTz} />
+            <HourlyHeatmap
+              hourlyByDay={peakStats.hourlyByDay || []}
+              userTz={userTz}
+            />
           </ErrorBoundary>
           <ErrorBoundary>
-            <DailyPeakBar daily={peakStats.daily} maxSlots={maxSlots} userTz={userTz} />
+            <DailyPeakBar
+              daily={peakStats.daily}
+              maxSlots={maxSlots}
+              userTz={userTz}
+            />
           </ErrorBoundary>
         </div>
 
@@ -712,7 +1036,10 @@ export default function Dashboard({
         </ErrorBoundary>
 
         {/* Embed badge info */}
-        <div className="card fade-up d7" style={{ marginTop: 14, padding: "16px 20px" }}>
+        <div
+          className="card fade-up d7"
+          style={{ marginTop: 14, padding: "16px 20px" }}
+        >
           <div
             style={{
               display: "flex",
@@ -723,10 +1050,28 @@ export default function Dashboard({
             }}
           >
             <div>
-              <div style={{ ...MONO, fontSize: 9, letterSpacing: "0.14em", color: "var(--muted)", textTransform: "uppercase", marginBottom: 4 }}>
+              <div
+                style={{
+                  ...MONO,
+                  fontSize: 9,
+                  letterSpacing: "0.14em",
+                  color: "var(--muted)",
+                  textTransform: "uppercase",
+                  marginBottom: 4,
+                }}
+              >
                 embed badge
               </div>
-              <code style={{ ...MONO, fontSize: 10, color: "var(--text)", background: "var(--bg3)", padding: "4px 8px", borderRadius: 4 }}>
+              <code
+                style={{
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--text)",
+                  background: "var(--bg3)",
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                }}
+              >
                 {`![](${typeof window !== "undefined" ? window.location.origin : ""}/api/badge?server=${activeServer})`}
               </code>
             </div>
@@ -749,17 +1094,39 @@ export default function Dashboard({
             gap: 12,
           }}
         >
-          <span style={{ ...MONO, fontSize: 9, color: "var(--muted)", letterSpacing: "0.08em" }}>
-            data via cfx.re public api · polls every 30s · times shown in {userTz} · independent tracker
+          <span
+            style={{
+              ...MONO,
+              fontSize: 9,
+              color: "var(--muted)",
+              letterSpacing: "0.08em",
+            }}
+          >
+            data via cfx.re public api · polls every 30s · times shown in{" "}
+            {userTz} · independent tracker
           </span>
           <div style={{ display: "flex", gap: 16 }}>
-            {[{ href: "/privacy", label: "Privacy" }, { href: "/terms", label: "Terms" }, { href: "/contact", label: "Contact" }].map(({ href, label }) => (
+            {[
+              { href: "/privacy", label: "Privacy" },
+              { href: "/terms", label: "Terms" },
+              { href: "/contact", label: "Contact" },
+            ].map(({ href, label }) => (
               <a
                 key={href}
                 href={href}
-                style={{ ...MONO, fontSize: 9, color: "var(--muted)", textDecoration: "none", transition: "color 0.2s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted)")}
+                style={{
+                  ...MONO,
+                  fontSize: 9,
+                  color: "var(--muted)",
+                  textDecoration: "none",
+                  transition: "color 0.2s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.color = "var(--text)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.color = "var(--muted)")
+                }
               >
                 {label}
               </a>
@@ -774,9 +1141,10 @@ export default function Dashboard({
 // Direct DB query — no self-referencing HTTP call during SSR
 export async function getServerSideProps(context) {
   const host = context.req.headers.host;
-  const domain = (
-    process.env.NEXT_PUBLIC_DOMAIN || `https://${host}`
-  ).replace(/\/$/, "");
+  const domain = (process.env.NEXT_PUBLIC_DOMAIN || `https://${host}`).replace(
+    /\/$/,
+    "",
+  );
 
   // Only treat as a server-specific share if ?server= is explicitly in the URL.
   // Visiting the base URL / should show generic site description, not whichever
