@@ -4,6 +4,14 @@ import { useRouter } from "next/router";
 
 const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
 
+function fmtAge(s) {
+  if (s == null) return "";
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
+}
+
 function SidebarLogo({ size = 30 }) {
   return (
     <img
@@ -90,13 +98,33 @@ export default function Sidebar({
   onToggle,
 }) {
   const [serversOpen, setServersOpen] = useState(true);
-  const router = useRouter();
+
+  async function handleRemoveServer(code, name) {
+    const key = window.prompt(
+      `Remove "${name}" from tracking?\n\nEnter your admin key to confirm:`,
+    );
+    if (!key) return;
+    try {
+      const r = await fetch(`/api/servers?code=${code}`, {
+        method: "DELETE",
+        headers: { "x-cron-secret": key },
+      });
+      if (r.status === 401) {
+        alert("Wrong admin key");
+        return;
+      }
+      const d = await r.json();
+      if (d.ok) window.location.reload();
+      else alert(d.error || "Failed to remove server");
+    } catch {
+      alert("Network error");
+    }
+  }
 
   const W = collapsed ? 64 : 228;
 
   return (
     <>
-      {/* Mobile overlay */}
       {!collapsed && (
         <div
           onClick={onToggle}
@@ -110,7 +138,6 @@ export default function Sidebar({
           className="sidebar-overlay"
         />
       )}
-
       <aside
         aria-label="Sidebar navigation"
         style={{
@@ -129,7 +156,6 @@ export default function Sidebar({
           zIndex: 40,
         }}
       >
-        {/* Logo + collapse toggle */}
         <div
           style={{
             display: "flex",
@@ -200,7 +226,6 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Nav links */}
         <div
           style={{
             flex: 1,
@@ -216,13 +241,10 @@ export default function Sidebar({
                 <NavItem href="/uptime" icon="↑" label="Uptime" />
                 <NavItem href="/history" icon="◎" label="History" />
               </NavSection>
-
               <NavSection label="Analytics">
                 <NavItem href="/heatmap" icon="▦" label="Heatmap" />
                 <NavItem href="/peaks" icon="⋯" label="Peak Stats" />
               </NavSection>
-
-              {/* Server list */}
               <NavSection label="Servers">
                 <div
                   onClick={() => setServersOpen((o) => !o)}
@@ -249,7 +271,6 @@ export default function Sidebar({
                     ›
                   </span>
                 </div>
-
                 {serversOpen &&
                   servers.map((sv) => {
                     const isActive = activeServer === sv.code;
@@ -283,22 +304,55 @@ export default function Sidebar({
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
-                              maxWidth: 120,
+                              maxWidth: 100,
                             }}
                           >
                             {sv.name}
                           </span>
-                          <span
+                          <div
                             style={{
-                              fontFamily: "var(--font-mono)",
-                              fontWeight: 300,
-                              fontSize: 11,
-                              color: online ? "var(--green)" : "var(--red)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
                               flexShrink: 0,
                             }}
                           >
-                            {sv.player_count ?? "—"}
-                          </span>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-mono)",
+                                fontWeight: 300,
+                                fontSize: 11,
+                                color: online ? "var(--green)" : "var(--red)",
+                              }}
+                            >
+                              {sv.player_count ?? "—"}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveServer(sv.code, sv.name);
+                              }}
+                              title="Remove server"
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "var(--muted)",
+                                fontSize: 10,
+                                cursor: "pointer",
+                                padding: "0 2px",
+                                opacity: 0.4,
+                                transition: "opacity 0.15s",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.opacity = "1")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.opacity = "0.4")
+                              }
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </div>
                         <div
                           style={{
@@ -327,21 +381,25 @@ export default function Sidebar({
                             fontSize: 9,
                             color: "var(--muted)",
                             marginTop: 3,
+                            display: "flex",
+                            justifyContent: "space-between",
                           }}
                         >
-                          {sv.code} · {pct}%
+                          <span>
+                            {sv.code} · {pct}%
+                          </span>
+                          <span
+                            style={{
+                              color: online ? "var(--green)" : "var(--muted)",
+                            }}
+                          >
+                            {fmtAge(sv.age_seconds)}
+                          </span>
                         </div>
                       </div>
                     );
                   })}
-
-                <div style={{ padding: "4px 12px 8px" }}>
-                  <Link href="/add-server" className="sidebar-add-link">
-                    <span style={{ fontSize: 14 }}>+</span> add server
-                  </Link>
-                </div>
               </NavSection>
-
               <NavSection label="Other">
                 <NavItem href="/contact" icon="✉" label="Contact" />
                 <NavItem href="/privacy" icon="⚇" label="Privacy" />
@@ -349,8 +407,6 @@ export default function Sidebar({
               </NavSection>
             </>
           )}
-
-          {/* Collapsed — icon-only nav */}
           {collapsed && (
             <div
               style={{
@@ -404,7 +460,6 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Bottom status */}
         {!collapsed && (
           <div
             style={{

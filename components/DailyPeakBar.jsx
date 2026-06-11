@@ -1,6 +1,10 @@
 import { useRef, useEffect, useState } from "react";
 
-export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
+export default function DailyPeakBar({
+  daily = [],
+  maxSlots = 32,
+  userTz = "UTC",
+}) {
   const containerRef = useRef(null);
   const [containerW, setContainerW] = useState(440);
 
@@ -35,21 +39,22 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
     );
   }
 
-  const PAD_TOP = 24; // FIX: space above bars for peak labels
-  const PAD_L = 32;
-  const PAD_B = 28;
-  const H = 90;
+  const PAD_TOP = 24,
+    PAD_L = 32,
+    PAD_B = 28,
+    H = 90;
   const n = daily.length;
   const usable = Math.max(containerW - PAD_L - 20, 100);
   const GAP = Math.max(4, Math.min(10, Math.floor((usable / n) * 0.22)));
   const BAR_W = Math.max(12, Math.floor((usable - GAP * (n - 1)) / n));
   const totalH = PAD_TOP + H + PAD_B;
   const totalW = PAD_L + n * (BAR_W + GAP) - GAP + 16;
-
   const maxVal = Math.max(...daily.map((d) => d.peak), 1);
+
+  // Format day label in user's timezone
   const fmt = (d) =>
     new Date(d)
-      .toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })
+      .toLocaleDateString("en-US", { weekday: "short", timeZone: userTz })
       .slice(0, 3)
       .toUpperCase();
 
@@ -125,14 +130,12 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
           </span>
         </div>
       </div>
-
       <div ref={containerRef} style={{ padding: "4px 20px 20px" }}>
         <svg
           width="100%"
           viewBox={`0 0 ${Math.max(totalW, containerW - 40)} ${totalH}`}
           style={{ display: "block", overflow: "visible" }}
         >
-          {/* Y-axis grid lines */}
           {[0.25, 0.5, 0.75, 1].map((pct) => (
             <g key={pct}>
               <line
@@ -156,18 +159,14 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
               </text>
             </g>
           ))}
-
-          {/* Bars */}
           {daily.map((d, i) => {
             const x = PAD_L + i * (BAR_W + GAP);
             const peakH = Math.max(2, (d.peak / maxVal) * H);
             const avgH = Math.max(2, (d.avg / maxVal) * H);
             const inner = Math.max(0, BAR_W - 8);
             const barY = PAD_TOP + H - peakH;
-
             return (
               <g key={i}>
-                {/* Peak background bar */}
                 <rect
                   x={x}
                   y={barY}
@@ -176,7 +175,6 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
                   fill="var(--line3)"
                   rx="3"
                 />
-                {/* Avg fill bar */}
                 <rect
                   x={x + 4}
                   y={PAD_TOP + H - avgH}
@@ -185,7 +183,6 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
                   fill="rgba(61,220,132,0.6)"
                   rx="3"
                 />
-                {/* FIX: peak label always sits in PAD_TOP space — never clips */}
                 <text
                   x={x + BAR_W / 2}
                   y={barY - 5}
@@ -197,7 +194,6 @@ export default function DailyPeakBar({ daily = [], maxSlots = 32 }) {
                 >
                   {d.peak}
                 </text>
-                {/* Day label */}
                 <text
                   x={x + BAR_W / 2}
                   y={PAD_TOP + H + 18}

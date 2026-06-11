@@ -1,13 +1,53 @@
-export default function HourlyHeatmap({ hourly = [] }) {
+import { useMemo } from "react";
+
+function utcHourToLocal(utcHour, tz) {
+  try {
+    const d = new Date();
+    d.setUTCHours(utcHour, 0, 0, 0);
+    return parseInt(
+      d.toLocaleString("en-US", {
+        timeZone: tz,
+        hour: "numeric",
+        hour12: false,
+      }),
+    );
+  } catch {
+    return utcHour;
+  }
+}
+
+export default function HourlyHeatmap({ hourly = [], userTz = "UTC" }) {
   const max = Math.max(...hourly.map((h) => h.avg_count || 0), 1);
-  const hours = Array.from({ length: 24 }, (_, i) => {
-    const f = hourly.find((h) => parseInt(h.hour) === i);
-    return { hour: i, avg: f?.avg_count ?? 0 };
-  });
+
+  // Build hours array remapped to local timezone
+  const hours = useMemo(() => {
+    const local = Array.from({ length: 24 }, (_, i) => ({ hour: i, avg: 0 }));
+    hourly.forEach((h) => {
+      const utcH = parseInt(h.hour);
+      const localH = utcHourToLocal(utcH, userTz);
+      if (localH >= 0 && localH < 24) local[localH].avg = h.avg_count ?? 0;
+    });
+    return local;
+  }, [hourly, userTz]);
+
   const daySeeds = [0.55, 0.62, 0.68, 0.73, 0.85, 1.0, 0.9];
   const days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
   const fmt = (h) =>
     h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h - 12}p`;
+
+  const tzLabel = (() => {
+    try {
+      return new Date()
+        .toLocaleTimeString("en-US", {
+          timeZone: userTz,
+          timeZoneName: "short",
+        })
+        .split(" ")
+        .pop();
+    } catch {
+      return "UTC";
+    }
+  })();
 
   return (
     <div className="card fade-up d5">
@@ -31,13 +71,11 @@ export default function HourlyHeatmap({ hourly = [] }) {
             letterSpacing: "0.06em",
           }}
         >
-          7-day avg · UTC
+          7-day avg · {tzLabel}
         </span>
       </div>
-
       <div style={{ padding: "16px 20px 20px", overflowX: "auto" }}>
         <div style={{ minWidth: 260 }}>
-          {/* Hour labels */}
           <div style={{ display: "flex", marginBottom: 5, paddingLeft: 30 }}>
             {hours.map((h, i) => (
               <div
@@ -55,7 +93,6 @@ export default function HourlyHeatmap({ hourly = [] }) {
               </div>
             ))}
           </div>
-
           {days.map((day, di) => (
             <div
               key={di}
@@ -108,8 +145,6 @@ export default function HourlyHeatmap({ hourly = [] }) {
               })}
             </div>
           ))}
-
-          {/* Legend */}
           <div
             style={{
               display: "flex",

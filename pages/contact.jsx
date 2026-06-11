@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 
@@ -11,6 +11,7 @@ const TOPICS = [
   "Bug report",
   "Data issue",
   "Privacy / data removal request",
+  "Server removal request",
   "Partnership or collaboration",
   "Other",
 ];
@@ -22,8 +23,18 @@ export default function Contact() {
     topic: "",
     message: "",
   });
-  const [status, setStatus] = useState(null); // null | 'sending' | 'sent' | 'error'
+  const [status, setStatus] = useState(null);
   const [errors, setErrors] = useState({});
+  const [serverCount, setServerCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/servers")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) setServerCount(d.length);
+      })
+      .catch(() => {});
+  }, []);
 
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -47,7 +58,6 @@ export default function Contact() {
     if (!validate()) return;
     setStatus("sending");
     try {
-      // Using FormSubmit.co — replace YOUR_EMAIL below with your actual email
       const res = await fetch(
         "https://formsubmit.co/ajax/8ae150ec513dd54e06d88e21631d6b7b",
         {
@@ -61,7 +71,7 @@ export default function Contact() {
             email: form.email,
             topic: form.topic,
             message: form.message,
-            _subject: `[Fivem Stats] ${form.topic}`,
+            _subject: `[FiveM Stats] ${form.topic}`,
           }),
         },
       );
@@ -88,7 +98,6 @@ export default function Contact() {
     transition: "border-color 0.2s, background 0.2s",
     letterSpacing: "0.01em",
   });
-
   const labelStyle = {
     ...MONO,
     fontSize: 10,
@@ -98,7 +107,6 @@ export default function Contact() {
     marginBottom: 7,
     display: "block",
   };
-
   const errStyle = {
     ...MONO,
     fontSize: 10,
@@ -113,14 +121,11 @@ export default function Contact() {
         <title>Contact — FiveM Stats</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-
       <Nav />
-
       <main
         id="main-content"
         style={{ maxWidth: 640, margin: "0 auto", padding: "48px 28px 0" }}
       >
-        {/* Header */}
         <div className="fade-up d1" style={{ marginBottom: 40 }}>
           <div
             style={{
@@ -162,7 +167,6 @@ export default function Contact() {
           style={{ height: 1, background: "var(--line)", marginBottom: 40 }}
         />
 
-        {/* Success state */}
         {status === "sent" ? (
           <div
             className="fade-up d2"
@@ -210,7 +214,6 @@ export default function Contact() {
             onSubmit={handleSubmit}
             style={{ display: "flex", flexDirection: "column", gap: 22 }}
           >
-            {/* Name + Email row */}
             <div
               style={{
                 display: "grid",
@@ -229,16 +232,6 @@ export default function Contact() {
                   value={form.name}
                   onChange={(e) => set("name", e.target.value)}
                   style={inputStyle(errors.name)}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "var(--green)";
-                    e.target.style.background = "var(--line)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = errors.name
-                      ? "var(--red)"
-                      : "var(--line2)";
-                    e.target.style.background = "var(--bg3)";
-                  }}
                 />
                 {errors.name && (
                   <div role="alert" style={errStyle}>
@@ -257,16 +250,6 @@ export default function Contact() {
                   value={form.email}
                   onChange={(e) => set("email", e.target.value)}
                   style={inputStyle(errors.email)}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "var(--green)";
-                    e.target.style.background = "var(--line)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = errors.email
-                      ? "var(--red)"
-                      : "var(--line2)";
-                    e.target.style.background = "var(--bg3)";
-                  }}
                 />
                 {errors.email && (
                   <div role="alert" style={errStyle}>
@@ -275,8 +258,6 @@ export default function Contact() {
                 )}
               </div>
             </div>
-
-            {/* Topic */}
             <div>
               <label htmlFor="contact-topic" style={labelStyle}>
                 Topic
@@ -289,21 +270,7 @@ export default function Contact() {
                   ...inputStyle(errors.topic),
                   appearance: "none",
                   cursor: "pointer",
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234a4a4a' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "right 14px center",
-                  paddingRight: 36,
                   color: form.topic ? "var(--text)" : "var(--muted)",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "var(--green)";
-                  e.target.style.background = "var(--line)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = errors.topic
-                    ? "var(--red)"
-                    : "var(--line2)";
-                  e.target.style.background = "var(--bg3)";
                 }}
               >
                 <option value="" disabled hidden>
@@ -317,8 +284,6 @@ export default function Contact() {
               </select>
               {errors.topic && <div style={errStyle}>{errors.topic}</div>}
             </div>
-
-            {/* Message */}
             <div>
               <label htmlFor="contact-message" style={labelStyle}>
                 Message
@@ -335,38 +300,13 @@ export default function Contact() {
                   minHeight: 120,
                   lineHeight: 1.65,
                 }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "var(--green)";
-                  e.target.style.background = "var(--line)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = errors.message
-                    ? "var(--red)"
-                    : "var(--line2)";
-                  e.target.style.background = "var(--bg3)";
-                }}
               />
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginTop: 5,
-                }}
-              >
-                {errors.message ? (
-                  <div role="alert" style={errStyle}>
-                    {errors.message}
-                  </div>
-                ) : (
-                  <div />
-                )}
-                <span style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
-                  {form.message.length} chars
-                </span>
-              </div>
+              {errors.message && (
+                <div role="alert" style={errStyle}>
+                  {errors.message}
+                </div>
+              )}
             </div>
-
-            {/* Error banner */}
             {status === "error" && (
               <div
                 style={{
@@ -377,14 +317,11 @@ export default function Contact() {
                   ...MONO,
                   fontSize: 11,
                   color: "var(--red)",
-                  letterSpacing: "0.04em",
                 }}
               >
                 something went wrong — please try again or email us directly
               </div>
             )}
-
-            {/* Submit */}
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <button
                 type="submit"
@@ -398,17 +335,8 @@ export default function Contact() {
                   fontFamily: "var(--font-body)",
                   fontSize: 14,
                   fontWeight: 500,
-                  letterSpacing: "0.04em",
                   padding: "12px 28px",
                   cursor: status === "sending" ? "not-allowed" : "pointer",
-                  transition: "background 0.2s, transform 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  if (status !== "sending")
-                    e.currentTarget.style.transform = "scale(1.02)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1)";
                 }}
               >
                 {status === "sending" ? "sending..." : "send message"}
@@ -420,7 +348,6 @@ export default function Contact() {
           </form>
         )}
 
-        {/* Info cards */}
         <div
           className="fade-up d4"
           style={{
@@ -436,7 +363,11 @@ export default function Contact() {
               value: "1–3 days",
               sub: "typical reply window",
             },
-            { label: "SERVER CODE", value: "3lamjz", sub: "cfx.re identifier" },
+            {
+              label: "SERVERS TRACKED",
+              value: String(serverCount || "—"),
+              sub: "active FiveM servers",
+            },
           ].map(({ label, value, sub }) => (
             <div
               key={label}
@@ -478,7 +409,6 @@ export default function Contact() {
           ))}
         </div>
       </main>
-
       <Footer />
     </>
   );

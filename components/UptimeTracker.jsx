@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
 
@@ -7,41 +7,46 @@ function fmtDuration(mins) {
   if (mins < 1440) return `${Math.round(mins / 60)}h ${mins % 60}m`;
   return `${Math.floor(mins / 1440)}d ${Math.round((mins % 1440) / 60)}h`;
 }
-function fmtTs(ts) {
-  return new Date(ts).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
-export default function UptimeTracker({ uptime = {} }) {
+export default function UptimeTracker({ uptime = {}, userTz = "UTC" }) {
   const [expanded, setExpanded] = useState(false);
+  const [now, setNow] = useState(null);
   const { events = [], uptimePct, totalDowntimeMinutes = 0 } = uptime;
+
+  // Hydration-safe: compute blocks only on the client
+  useEffect(() => {
+    setNow(Date.now());
+  }, []);
+
+  const fmtTs = (ts) =>
+    new Date(ts).toLocaleString("en-US", {
+      timeZone: userTz,
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   const downtimes = events.filter((e) => e.type === "downtime");
   const restarts = events.filter((e) => e.type === "restart");
 
-  // FIX #8: 7-day timeline = 168 hourly blocks in a SINGLE scrollable row
-  // Each block represents one hour. Green = online, red = gap detected.
-  const blocks = Array.from({ length: 168 }, (_, i) => {
-    const blockStart = new Date(Date.now() - (167 - i) * 3600000);
-    const blockEnd = new Date(blockStart.getTime() + 3600000);
-    const hasDown = downtimes.some((d) => {
-      const s = new Date(d.start),
-        e = new Date(d.end);
-      return s < blockEnd && e > blockStart;
+  const days = useMemo(() => {
+    if (!now) return [];
+    const blocks = Array.from({ length: 168 }, (_, i) => {
+      const blockStart = new Date(now - (167 - i) * 3600000);
+      const blockEnd = new Date(blockStart.getTime() + 3600000);
+      const hasDown = downtimes.some((d) => {
+        const s = new Date(d.start),
+          e = new Date(d.end);
+        return s < blockEnd && e > blockStart;
+      });
+      return { i, ts: blockStart, down: hasDown };
     });
-    return { i, ts: blockStart, down: hasDown };
-  });
-
-  // Group into 7 rows of 24 (one row per day) for readable layout
-  const days = Array.from({ length: 7 }, (_, d) => {
-    const dayBlocks = blocks.slice(d * 24, (d + 1) * 24);
-    const dayDate = dayBlocks[0]?.ts;
-    return { dayDate, blocks: dayBlocks };
-  });
+    return Array.from({ length: 7 }, (_, d) => {
+      const dayBlocks = blocks.slice(d * 24, (d + 1) * 24);
+      return { dayDate: dayBlocks[0]?.ts, blocks: dayBlocks };
+    });
+  }, [now, downtimes]);
 
   const uptimeColor =
     uptimePct == null
@@ -83,84 +88,96 @@ export default function UptimeTracker({ uptime = {} }) {
           </span>
         </div>
       </div>
-
       <div style={{ padding: "16px 20px 20px" }}>
-        {/* FIX #8: 7 rows of 24 hourly blocks — readable on all screen sizes */}
-        <div
-          role="img"
-          aria-label="7-day uptime timeline, one row per day"
-          style={{ marginBottom: 14 }}
-        >
+        {days.length > 0 ? (
+          <div
+            role="img"
+            aria-label="7-day uptime timeline, one row per day"
+            style={{ marginBottom: 14 }}
+          >
+            <div
+              style={{
+                ...MONO,
+                fontSize: 9,
+                color: "var(--muted)",
+                marginBottom: 8,
+                letterSpacing: "0.08em",
+              }}
+            >
+              168h timeline — each cell = 1 hour
+            </div>
+            {days.map((day, di) => (
+              <div
+                key={di}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  marginBottom: 3,
+                }}
+              >
+                <div
+                  style={{
+                    ...MONO,
+                    fontSize: 8,
+                    color: "var(--muted)",
+                    width: 28,
+                    flexShrink: 0,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {day.dayDate
+                    ? day.dayDate
+                        .toLocaleDateString("en-US", {
+                          weekday: "short",
+                          timeZone: userTz,
+                        })
+                        .toUpperCase()
+                    : "—"}
+                </div>
+                {day.blocks.map((b, bi) => (
+                  <div
+                    key={bi}
+                    title={`${fmtTs(b.ts)} — ${b.down ? "offline/gap" : "online"}`}
+                    aria-hidden="true"
+                    style={{
+                      flex: 1,
+                      height: 16,
+                      borderRadius: 2,
+                      background: b.down
+                        ? "rgba(224,85,85,0.55)"
+                        : "rgba(61,220,132,0.3)",
+                      transition: "opacity 0.15s, transform 0.1s",
+                      cursor: "default",
+                      minWidth: 0,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = "0.65";
+                      e.currentTarget.style.transform = "scaleY(1.2)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = "1";
+                      e.currentTarget.style.transform = "scaleY(1)";
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : (
           <div
             style={{
               ...MONO,
-              fontSize: 9,
+              fontSize: 11,
               color: "var(--muted)",
-              marginBottom: 8,
-              letterSpacing: "0.08em",
+              padding: "20px 0",
+              textAlign: "center",
             }}
           >
-            168h timeline — each cell = 1 hour
+            loading timeline...
           </div>
-          {days.map((day, di) => (
-            <div
-              key={di}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                marginBottom: 3,
-              }}
-            >
-              {/* Day label */}
-              <div
-                style={{
-                  ...MONO,
-                  fontSize: 8,
-                  color: "var(--muted)",
-                  width: 28,
-                  flexShrink: 0,
-                  letterSpacing: "0.04em",
-                }}
-              >
-                {day.dayDate
-                  ? day.dayDate
-                      .toLocaleDateString("en-US", { weekday: "short" })
-                      .toUpperCase()
-                  : "—"}
-              </div>
-              {/* 24 hourly blocks */}
-              {day.blocks.map((b, bi) => (
-                <div
-                  key={bi}
-                  title={`${fmtTs(b.ts)} — ${b.down ? "offline/gap" : "online"}`}
-                  aria-hidden="true"
-                  style={{
-                    flex: 1,
-                    height: 16,
-                    borderRadius: 2,
-                    background: b.down
-                      ? "rgba(224,85,85,0.55)"
-                      : "rgba(61,220,132,0.3)",
-                    transition: "opacity 0.15s, transform 0.1s",
-                    cursor: "default",
-                    minWidth: 0,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = "0.65";
-                    e.currentTarget.style.transform = "scaleY(1.2)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "1";
-                    e.currentTarget.style.transform = "scaleY(1)";
-                  }}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
+        )}
 
-        {/* Stats row */}
         <div
           style={{
             display: "flex",
@@ -217,7 +234,6 @@ export default function UptimeTracker({ uptime = {} }) {
           ))}
         </div>
 
-        {/* Legend */}
         <div
           style={{
             display: "flex",
@@ -250,7 +266,6 @@ export default function UptimeTracker({ uptime = {} }) {
           ))}
         </div>
 
-        {/* Incident log */}
         {events.length > 0 && (
           <div>
             <button
@@ -287,7 +302,6 @@ export default function UptimeTracker({ uptime = {} }) {
               </span>
               incident log ({events.length})
             </button>
-
             {expanded && (
               <div
                 style={{

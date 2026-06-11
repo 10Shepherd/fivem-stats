@@ -17,25 +17,22 @@ const toDateInput = (d) => d.toISOString().split("T")[0];
 
 function fmtChartLabel(isoString, bucket, userTz) {
   const d = new Date(isoString);
-  const opts = { timeZone: userTz };
-  if (bucket === "minute" || bucket === "hour") {
+  if (bucket === "minute" || bucket === "hour")
     return d.toLocaleTimeString("en-US", {
-      ...opts,
+      timeZone: userTz,
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
     });
-  }
   return d.toLocaleDateString("en-US", {
-    ...opts,
+    timeZone: userTz,
     month: "short",
     day: "numeric",
   });
 }
 
 function fmtTooltipLabel(isoString, userTz) {
-  const d = new Date(isoString);
-  return d.toLocaleString("en-US", {
+  return new Date(isoString).toLocaleString("en-US", {
     timeZone: userTz,
     month: "short",
     day: "numeric",
@@ -80,6 +77,21 @@ const PRESETS = [
 export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
   const [userTz, setUserTz] = useState("UTC");
   const [todayStr, setTodayStr] = useState("");
+  const [activeServer, setActiveServer] = useState(propServer);
+  const [serverInfo, setServerInfo] = useState(null);
+  const [history, setHistory] = useState({
+    rows: [],
+    summary: {},
+    bucket: "hour",
+  });
+  const [loading, setLoading] = useState(true);
+  const [timedOut, setTimedOut] = useState(false);
+  const [filterMode, setFilterMode] = useState("preset");
+  const [activePreset, setActivePreset] = useState(24);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [rangeError, setRangeError] = useState("");
+
   useEffect(() => {
     setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const now = new Date();
@@ -89,20 +101,6 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
     setFromDate(toDateInput(week));
     setToDate(toDateInput(now));
   }, []);
-
-  const [activeServer, setActiveServer] = useState(propServer);
-  const [serverInfo, setServerInfo] = useState(null);
-  const [history, setHistory] = useState({
-    rows: [],
-    summary: {},
-    bucket: "hour",
-  });
-  const [loading, setLoading] = useState(true);
-  const [filterMode, setFilterMode] = useState("preset");
-  const [activePreset, setActivePreset] = useState(24);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [rangeError, setRangeError] = useState("");
 
   const serverRef = useRef(activeServer);
   const filterRef = useRef("preset");
@@ -155,25 +153,27 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
   };
 
   const refreshAll = useCallback(async () => {
+    setTimedOut(false);
+    const timeout = setTimeout(() => setTimedOut(true), 12000);
     const histOpts =
       filterRef.current === "range"
         ? { from: fromRef.current, to: toRef.current }
         : { hours: presetRef.current };
     await Promise.all([fetchHistory(histOpts), fetchServerList()]);
+    clearTimeout(timeout);
     setLoading(false);
   }, []);
 
   useEffect(() => {
     setLoading(true);
+    setTimedOut(false);
     setHistory({ rows: [], summary: {}, bucket: "hour" });
     refreshAll();
   }, [activeServer, refreshAll]);
-
   useEffect(() => {
     const iv = setInterval(refreshAll, REFRESH_MS);
     return () => clearInterval(iv);
   }, [refreshAll]);
-
   useEffect(() => {
     if (filterMode === "preset") fetchHistory({ hours: activePreset });
   }, [activePreset]); // eslint-disable-line
@@ -205,13 +205,11 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
   const summary = history.summary ?? {};
   const bucket = history.bucket ?? "hour";
   const serverName = serverInfo?.name || activeServer;
-
   const chartData = (history.rows || []).map((r) => ({
     t: fmtChartLabel(r.t, bucket, userTz),
     tFull: fmtTooltipLabel(r.t, userTz),
     count: r.count,
   }));
-
   const tzShort = (() => {
     try {
       return new Date()
@@ -231,7 +229,6 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
       <Head>
         <title>History — {serverName} — FiveM Stats</title>
       </Head>
-
       <header className="topbar">
         <div>
           <div
@@ -250,7 +247,6 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
           </div>
         </div>
       </header>
-
       <main id="main-content" className="page-content">
         <div className="card fade-up d1" style={{ overflow: "hidden" }}>
           <div
@@ -278,7 +274,6 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
                 {tzShort}
               </span>
             </div>
-
             <div
               style={{
                 display: "flex",
@@ -306,12 +301,10 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
                   </button>
                 ))}
               </div>
-
               <div
                 aria-hidden="true"
                 style={{ width: 1, height: 14, background: "var(--line2)" }}
               />
-
               <div
                 className="date-row"
                 style={{
@@ -341,7 +334,6 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
                     type="date"
                     value={fromDate}
                     max={toDate}
-                    aria-label="Start date"
                     onChange={(e) => {
                       setFromDate(e.target.value);
                       setRangeError("");
@@ -380,7 +372,6 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
                     value={toDate}
                     min={fromDate}
                     max={todayStr}
-                    aria-label="End date"
                     onChange={(e) => {
                       setToDate(e.target.value);
                       setRangeError("");
@@ -389,7 +380,6 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
                 </div>
                 <button
                   onClick={applyRange}
-                  aria-label="Apply range"
                   className={`btn ${filterMode === "range" ? "btn-green" : ""}`}
                   style={{ padding: "5px 12px", fontSize: 10, marginBottom: 0 }}
                 >
@@ -406,9 +396,8 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
               </div>
             </div>
           </div>
-
           <div style={{ height: 320, padding: "12px 8px 0" }}>
-            {chartData.length === 0 ? (
+            {loading ? (
               <div
                 style={{
                   height: "100%",
@@ -418,7 +407,41 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
                 }}
               >
                 <p style={{ ...MONO, fontSize: 11, color: "var(--muted)" }}>
-                  {loading ? "loading..." : "no data for this range"}
+                  loading...
+                </p>
+              </div>
+            ) : timedOut ? (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 12,
+                }}
+              >
+                <p style={{ ...MONO, fontSize: 13, color: "var(--red)" }}>
+                  data unavailable
+                </p>
+                <p style={{ ...MONO, fontSize: 11, color: "var(--muted)" }}>
+                  could not load chart data
+                </p>
+                <button className="btn" onClick={refreshAll}>
+                  retry
+                </button>
+              </div>
+            ) : chartData.length === 0 ? (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <p style={{ ...MONO, fontSize: 11, color: "var(--muted)" }}>
+                  no data for this range
                 </p>
               </div>
             ) : (
@@ -501,7 +524,6 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
               </ResponsiveContainer>
             )}
           </div>
-
           <div
             className="status-bar"
             style={{

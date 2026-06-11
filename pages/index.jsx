@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Head from "next/head";
+import { useRouter } from "next/router";
 import {
   AreaChart,
   Area,
@@ -17,7 +18,6 @@ import PeakSummary from "../components/PeakSummary";
 
 const REFRESH_MS = 30_000;
 const toDateInput = (d) => d.toISOString().split("T")[0];
-
 const fmtAge = (s) => {
   if (s == null) return "—";
   if (s < 60) return `${s}s ago`;
@@ -25,33 +25,24 @@ const fmtAge = (s) => {
   return `${Math.round(s / 3600)}h ago`;
 };
 
-// FIX #1 + #2: format chart timestamps in the USER'S local timezone,
-// with a label style appropriate to the bucket size
 function fmtChartLabel(isoString, bucket, userTz) {
   const d = new Date(isoString);
-  const opts = { timeZone: userTz };
-
-  if (bucket === "minute" || bucket === "hour") {
-    // Short time — just HH:MM in user's timezone
+  if (bucket === "minute" || bucket === "hour")
     return d.toLocaleTimeString("en-US", {
-      ...opts,
+      timeZone: userTz,
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
     });
-  }
-  // Day bucket — "Jun 7"
   return d.toLocaleDateString("en-US", {
-    ...opts,
+    timeZone: userTz,
     month: "short",
     day: "numeric",
   });
 }
 
-// Tooltip also shows full local time
 function fmtTooltipLabel(isoString, userTz) {
-  const d = new Date(isoString);
-  return d.toLocaleString("en-US", {
+  return new Date(isoString).toLocaleString("en-US", {
     timeZone: userTz,
     month: "short",
     day: "numeric",
@@ -86,7 +77,6 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
-// FIX #3: AnimatedNumber now accepts color prop and applies it directly
 function AnimatedNumber({ value, large, color }) {
   const [key, setKey] = useState(0);
   const prev = useRef(value);
@@ -122,21 +112,10 @@ const PRESETS = [
 ];
 
 export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
-  // FIX #1: detect user's timezone once on mount.
-  // Dates are initialized on the client too (not during render) to avoid a
-  // server/client hydration mismatch (React errors #418/#423/#425).
+  const router = useRouter();
+
   const [userTz, setUserTz] = useState("UTC");
   const [todayStr, setTodayStr] = useState("");
-  useEffect(() => {
-    setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
-    const now = new Date();
-    const week = new Date(now);
-    week.setDate(now.getDate() - 7);
-    setTodayStr(toDateInput(now));
-    setFromDate(toDateInput(week));
-    setToDate(toDateInput(now));
-  }, []);
-
   const [activeServer, setActiveServer] = useState(propServer);
   const [serverInfo, setServerInfo] = useState(null);
   const [live, setLive] = useState(null);
@@ -159,8 +138,32 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [rangeError, setRangeError] = useState("");
+  const [showPeakBanner, setShowPeakBanner] = useState(false);
+  const [shareMsg, setShareMsg] = useState("");
 
-  // Refs for stale-closure-safe interval
+  // #12: Read URL params on mount
+  useEffect(() => {
+    setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    const now = new Date();
+    const week = new Date(now);
+    week.setDate(now.getDate() - 7);
+    setTodayStr(toDateInput(now));
+
+    const q = router.query;
+    if (q.server) setActiveServer(q.server);
+    if (q.hours) {
+      setActivePreset(parseInt(q.hours) || 24);
+      setFilterMode("preset");
+    } else if (q.from && q.to) {
+      setFromDate(q.from);
+      setToDate(q.to);
+      setFilterMode("range");
+    } else {
+      setFromDate(toDateInput(week));
+      setToDate(toDateInput(now));
+    }
+  }, []); // eslint-disable-line
+
   const serverRef = useRef(activeServer);
   const filterRef = useRef("preset");
   const presetRef = useRef(24);
@@ -182,14 +185,11 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
     toRef.current = toDate;
   }, [toDate]);
 
-  // Listen for sidebar server changes
   useEffect(() => {
     const fn = (e) => setActiveServer(e.detail.code);
     window.addEventListener("serverChange", fn);
     return () => window.removeEventListener("serverChange", fn);
   }, []);
-
-  // Reset + re-fetch when server changes
   useEffect(() => {
     setLoading(true);
     setLive(null);
@@ -204,7 +204,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
       setLive(d);
     } catch {}
   };
-
   const fetchHistory = async (opts = {}) => {
     try {
       const url =
@@ -216,7 +215,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
       if (!d.error) setHistory(d);
     } catch {}
   };
-
   const fetchPeakStats = async () => {
     try {
       const r = await fetch(`/api/peakstats?server=${serverRef.current}`);
@@ -224,7 +222,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
       if (!d.error) setPeakStats(d);
     } catch {}
   };
-
   const fetchUptime = async () => {
     try {
       const r = await fetch(`/api/uptime?server=${serverRef.current}&days=7`);
@@ -232,7 +229,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
       if (!d.error) setUptime(d);
     } catch {}
   };
-
   const fetchServerList = async () => {
     try {
       const r = await fetch("/api/servers");
@@ -266,11 +262,9 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
     const iv = setInterval(refreshAll, REFRESH_MS);
     return () => clearInterval(iv);
   }, [refreshAll]);
-
   useEffect(() => {
     if (filterMode === "preset") fetchHistory({ hours: activePreset });
   }, [activePreset]); // eslint-disable-line
-
   useEffect(() => {
     setCountdown(Math.round(REFRESH_MS / 1000));
     const tick = setInterval(
@@ -279,6 +273,19 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
     );
     return () => clearInterval(tick);
   }, [lastSync]);
+
+  // #13: Peak notification
+  useEffect(() => {
+    if (
+      live?.playerCount > 0 &&
+      peakStats.allTimePeak > 0 &&
+      live.playerCount >= peakStats.allTimePeak
+    ) {
+      setShowPeakBanner(true);
+      const t = setTimeout(() => setShowPeakBanner(false), 15000);
+      return () => clearTimeout(t);
+    }
+  }, [live?.playerCount, peakStats.allTimePeak]);
 
   function applyRange() {
     if (!fromDate || !toDate) {
@@ -303,28 +310,39 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
     setRangeError("");
   }
 
+  // #12: Share current view
+  function handleShare() {
+    const params = new URLSearchParams({ server: activeServer });
+    if (filterMode === "range") {
+      params.set("from", fromDate);
+      params.set("to", toDate);
+    } else params.set("hours", String(activePreset));
+    const url = `${window.location.origin}/?${params}`;
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        setShareMsg("link copied!");
+        setTimeout(() => setShareMsg(""), 2000);
+      })
+      .catch(() => {});
+  }
+
   const online = live?.online ?? false;
   const count = live?.playerCount ?? 0;
   const maxSlots = live?.maxPlayers ?? 32;
   const fillPct = maxSlots > 0 ? Math.round((count / maxSlots) * 100) : 0;
   const summary = history.summary ?? {};
   const bucket = history.bucket ?? "hour";
-
-  // FIX #1 + #2: format using user's detected timezone + bucket-aware labels
-  // Store raw ISO strings alongside formatted labels so tooltip can use them too
   const chartData = (history.rows || []).map((r) => ({
     t: fmtChartLabel(r.t, bucket, userTz),
-    tFull: fmtTooltipLabel(r.t, userTz), // was: fmtTooltipLabel(r.t, bucket, userTz)
+    tFull: fmtTooltipLabel(r.t, userTz),
     count: r.count,
   }));
-
-  // 7d avg from daily peakStats
   const sevenDayAvg = peakStats.daily.length
     ? Math.round(
         peakStats.daily.reduce((a, d) => a + d.avg, 0) / peakStats.daily.length,
       )
     : null;
-
   const serverName = serverInfo?.name || activeServer;
 
   const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
@@ -337,7 +355,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
     marginBottom: 10,
   };
 
-  // Timezone display name (short)
   const tzShort = (() => {
     try {
       return new Date()
@@ -366,7 +383,47 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
         <meta name="twitter:image" content={`/api/og?server=${activeServer}`} />
       </Head>
 
-      {/* ── Topbar ── */}
+      {/* #13: Peak banner */}
+      {showPeakBanner && (
+        <div
+          style={{
+            background: "rgba(61,220,132,0.12)",
+            borderBottom: "1px solid rgba(61,220,132,0.25)",
+            padding: "8px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            animation: "fadeUp 0.4s ease",
+          }}
+        >
+          <span style={{ fontSize: 16 }}>🔥</span>
+          <span
+            style={{
+              ...MONO,
+              fontSize: 11,
+              color: "var(--green)",
+              letterSpacing: "0.06em",
+            }}
+          >
+            New all-time peak! {count} players online
+          </span>
+          <button
+            onClick={() => setShowPeakBanner(false)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--muted)",
+              cursor: "pointer",
+              fontSize: 14,
+              marginLeft: 8,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <header className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div>
@@ -386,8 +443,14 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
             </div>
           </div>
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
           <div
             style={{
               display: "flex",
@@ -422,6 +485,15 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
           >
             ↻ {countdown}s
           </span>
+          {/* #12: Share button */}
+          <button
+            onClick={handleShare}
+            aria-label="Share link"
+            className="btn"
+            style={{ padding: "5px 12px", fontSize: 10 }}
+          >
+            {shareMsg || "share"}
+          </button>
           <button
             onClick={refreshAll}
             aria-label="Sync data"
@@ -450,11 +522,8 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
         </div>
       </header>
 
-      {/* ── Page content ── */}
       <main id="main-content" className="page-content">
-        {/* KPI row */}
         <div className="kpi-grid fade-up d1">
-          {/* FIX #3: pass color directly to AnimatedNumber — no more broken <style> injection */}
           <div className="card" style={{ padding: "18px 18px 16px" }}>
             <p style={LABEL}>Players online</p>
             <AnimatedNumber
@@ -494,7 +563,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
               />
             </div>
           </div>
-
           <div className="card" style={{ padding: "18px 18px 16px" }}>
             <p style={LABEL}>
               {filterMode === "range"
@@ -518,7 +586,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
               highest recorded
             </p>
           </div>
-
           <div className="card" style={{ padding: "18px 18px 16px" }}>
             <p style={LABEL}>7d avg</p>
             <AnimatedNumber
@@ -536,7 +603,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
               daily average
             </p>
           </div>
-
           <div className="card" style={{ padding: "18px 18px 16px" }}>
             <p style={LABEL}>Uptime</p>
             <AnimatedNumber
@@ -590,12 +656,10 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
               >
                 PLAYER COUNT
               </span>
-              {/* FIX #1: show timezone in chart header */}
               <span style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
                 {tzShort}
               </span>
             </div>
-
             <div
               style={{
                 display: "flex",
@@ -623,12 +687,10 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
                   </button>
                 ))}
               </div>
-
               <div
                 aria-hidden="true"
                 style={{ width: 1, height: 14, background: "var(--line2)" }}
               />
-
               <div
                 className="date-row"
                 style={{
@@ -658,7 +720,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
                     type="date"
                     value={fromDate}
                     max={toDate}
-                    aria-label="Start date"
                     onChange={(e) => {
                       setFromDate(e.target.value);
                       setRangeError("");
@@ -697,7 +758,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
                     value={toDate}
                     min={fromDate}
                     max={todayStr}
-                    aria-label="End date"
                     onChange={(e) => {
                       setToDate(e.target.value);
                       setRangeError("");
@@ -706,7 +766,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
                 </div>
                 <button
                   onClick={applyRange}
-                  aria-label="Apply range"
                   className={`btn ${filterMode === "range" ? "btn-green" : ""}`}
                   style={{ padding: "5px 12px", fontSize: 10, marginBottom: 0 }}
                 >
@@ -723,7 +782,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
               </div>
             </div>
           </div>
-
           <div style={{ height: 210, padding: "12px 8px 0" }}>
             {chartData.length === 0 ? (
               <div
@@ -732,8 +790,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  flexDirection: "column",
-                  gap: 8,
                 }}
               >
                 <p style={{ ...MONO, fontSize: 11, color: "var(--muted)" }}>
@@ -789,7 +845,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
                     domain={[0, maxSlots]}
                     width={26}
                   />
-                  {/* FIX #2: use tFull for tooltip label (full datetime) */}
                   <Tooltip
                     content={<ChartTooltip />}
                     cursor={{ stroke: "rgba(61,220,132,0.15)", strokeWidth: 1 }}
@@ -821,8 +876,6 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
               </ResponsiveContainer>
             )}
           </div>
-
-          {/* Status strip */}
           <div
             className="status-bar"
             style={{
@@ -874,19 +927,65 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
           </div>
         </div>
 
-        {/* Peak insights */}
-        <PeakSummary peakStats={peakStats} summary={summary} />
-
-        {/* Bottom grid */}
+        <PeakSummary peakStats={peakStats} summary={summary} userTz={userTz} />
         <div className="bottom-grid" style={{ marginBottom: 14 }}>
-          <HourlyHeatmap hourly={peakStats.hourly} />
-          <DailyPeakBar daily={peakStats.daily} maxSlots={maxSlots} />
+          <HourlyHeatmap hourly={peakStats.hourly} userTz={userTz} />
+          <DailyPeakBar
+            daily={peakStats.daily}
+            maxSlots={maxSlots}
+            userTz={userTz}
+          />
+        </div>
+        <UptimeTracker uptime={uptime} userTz={userTz} />
+
+        {/* #15: Embed badge info */}
+        <div
+          className="card fade-up d7"
+          style={{ marginTop: 14, padding: "16px 20px" }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 10,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  ...MONO,
+                  fontSize: 9,
+                  letterSpacing: "0.14em",
+                  color: "var(--muted)",
+                  textTransform: "uppercase",
+                  marginBottom: 4,
+                }}
+              >
+                embed badge
+              </div>
+              <code
+                style={{
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--text)",
+                  background: "var(--bg3)",
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                }}
+              >
+                {`![](${typeof window !== "undefined" ? window.location.origin : ""}/api/badge?server=${activeServer})`}
+              </code>
+            </div>
+            <img
+              src={`/api/badge?server=${activeServer}&label=${encodeURIComponent(serverName)}`}
+              alt="badge preview"
+              style={{ height: 20 }}
+            />
+          </div>
         </div>
 
-        {/* Uptime */}
-        <UptimeTracker uptime={uptime} />
-
-        {/* Footer */}
         <div
           style={{
             marginTop: 32,
@@ -907,8 +1006,7 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
             }}
           >
             data via cfx.re public api · polls every 30s · times shown in{" "}
-            {userTz} · independent tracker, not affiliated with the servers
-            listed
+            {userTz} · independent tracker
           </span>
           <div style={{ display: "flex", gap: 16 }}>
             {[

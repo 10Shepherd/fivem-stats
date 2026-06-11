@@ -1,6 +1,10 @@
 const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
 
-export default function PeakSummary({ peakStats = {}, summary = {} }) {
+export default function PeakSummary({
+  peakStats = {},
+  summary = {},
+  userTz = "UTC",
+}) {
   const {
     busiestDay,
     busiestHour,
@@ -9,24 +13,40 @@ export default function PeakSummary({ peakStats = {}, summary = {} }) {
     trackingSince,
   } = peakStats;
 
+  const tzLabel = (() => {
+    try {
+      return new Date()
+        .toLocaleTimeString("en-US", {
+          timeZone: userTz,
+          timeZoneName: "short",
+        })
+        .split(" ")
+        .pop();
+    } catch {
+      return "UTC";
+    }
+  })();
+
   const items = [
     {
       label: "Busiest day",
       value: busiestDay || "—",
-      sub: "30-day average",
+      sub: `30-day avg · ${tzLabel}`,
       accent: true,
     },
     {
       label: "Peak hour",
       value: busiestHour || "—",
-      sub: busiestHourAvg ? `avg ${busiestHourAvg} players` : "30-day average",
+      sub: busiestHourAvg
+        ? `avg ${busiestHourAvg} players · ${tzLabel}`
+        : `30-day avg · ${tzLabel}`,
       accent: true,
     },
     {
       label: "All-time peak",
       value: allTimePeak || "—",
       sub: trackingSince
-        ? `since ${new Date(trackingSince).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`
+        ? `since ${new Date(trackingSince).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: userTz })}`
         : "since tracking began",
     },
     {
@@ -53,7 +73,6 @@ export default function PeakSummary({ peakStats = {}, summary = {} }) {
           30-day analysis
         </span>
       </div>
-
       <div
         className="peak-grid"
         style={{

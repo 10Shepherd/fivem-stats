@@ -171,6 +171,24 @@ input[type="date"]:focus {
   }
 }
 
+/* #18: Page transition */
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.page-active {
+  animation: pageIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.page-enter {
+  opacity: 0;
+}
+
 .fade-up {
   animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -218,8 +236,6 @@ input[type="date"]:focus {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-
-/* KPI stat cards grid — 4 cols default, responsive via media queries */
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -245,7 +261,6 @@ input[type="date"]:focus {
   align-items: center;
 }
 
-/* Tag / pill */
 .pill {
   display: inline-flex;
   align-items: center;
@@ -267,7 +282,6 @@ input[type="date"]:focus {
   color: var(--green);
 }
 
-/* Stat label */
 .stat-label {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -278,7 +292,6 @@ input[type="date"]:focus {
   margin-bottom: 12px;
 }
 
-/* Button */
 .btn {
   background: none;
   border: 1px solid var(--line2);
@@ -426,23 +439,14 @@ input[type="date"]:focus {
 }
 
 @media (max-width: 768px) {
-  /* ── Mobile topbar ──
-     Layout.jsx renders its own hamburger bar (inline styles, sticky top:0).
-     The page's .topbar should scroll normally so it doesn't overlap. */
   .topbar {
     position: static;
     padding: 12px 16px;
     flex-wrap: wrap;
   }
-
   .page-content {
     padding: 14px 14px 48px;
   }
-
-  /* ── Mobile sidebar ──
-     Layout.jsx handles positioning and transform on a wrapper div.
-     Do NOT override the <aside> transform here — it would fight the
-     wrapper and keep the sidebar hidden even when "open". */
 }
 
 @media (max-width: 600px) {
@@ -466,15 +470,6 @@ input[type="date"]:focus {
   .status-bar {
     flex-wrap: wrap;
     gap: 14px !important;
-  }
-  .main-wrap {
-    padding: 14px 14px 48px !important;
-  }
-  .nav-wrap {
-    padding: 14px 16px !important;
-  }
-  .hero-cell {
-    padding: 22px 18px !important;
   }
   .peak-grid {
     grid-template-columns: 1fr 1fr !important;
