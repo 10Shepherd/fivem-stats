@@ -9,7 +9,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,s
+  ReferenceLine,
 } from "recharts";
 import HourlyHeatmap from "../components/HourlyHeatmap";
 import DailyPeakBar from "../components/DailyPeakBar";
@@ -174,6 +174,9 @@ export default function Dashboard({
   const presetRef = useRef(24);
   const fromRef = useRef("");
   const toRef = useRef("");
+  // Tracks the highest player count we've already announced — prevents
+  // re-announcing the same peak on every 30s refresh cycle
+  const announcedPeakRef = useRef(0);
   useEffect(() => {
     serverRef.current = activeServer;
   }, [activeServer]);
@@ -279,13 +282,18 @@ export default function Dashboard({
     return () => clearInterval(tick);
   }, [lastSync]);
 
-  // #13: Peak notification
+  // Peak notification — only fires when the live count BREAKS the stored
+  // all-time record (strictly greater than), and only once per new high.
+  // announcedPeakRef remembers the last count we already notified about
+  // so repeated 30s refreshes at the same count don't re-trigger the banner.
   useEffect(() => {
     if (
       live?.playerCount > 0 &&
       peakStats.allTimePeak > 0 &&
-      live.playerCount >= peakStats.allTimePeak
+      live.playerCount > peakStats.allTimePeak && // must BEAT the record, not just match it
+      live.playerCount > announcedPeakRef.current // must be a count we haven't announced yet
     ) {
+      announcedPeakRef.current = live.playerCount; // remember this level so we don't repeat it
       setShowPeakBanner(true);
       const t = setTimeout(() => setShowPeakBanner(false), 15000);
       return () => clearTimeout(t);
@@ -404,14 +412,12 @@ export default function Dashboard({
               : "Live player counts, uptime, peak analytics and heatmaps for FiveM servers."
           }
         />
-        <meta
-          property="og:image"
-          content={`${domain}/api/og?server=${propServer}`}
-        />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:url" content={`${domain}/`} />
-        <meta name="twitter:card" content="summary_large_image" />
+        <meta property="og:image" content={`${domain}/assets/icon-512.png`} />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="512" />
+        <meta property="og:image:height" content="512" />
+        <meta property="og:url" content={`${domain}/?server=${propServer}`} />
+        <meta name="twitter:card" content="summary" />
         <meta
           name="twitter:title"
           content={
@@ -426,10 +432,7 @@ export default function Dashboard({
               : "Live FiveM server statistics"
           }
         />
-        <meta
-          name="twitter:image"
-          content={`${domain}/api/og?server=${propServer}`}
-        />
+        <meta name="twitter:image" content={`${domain}/assets/icon-512.png`} />
       </Head>
 
       {/* #13: Peak banner */}
@@ -455,7 +458,8 @@ export default function Dashboard({
               letterSpacing: "0.06em",
             }}
           >
-            New all-time peak! {count} players online
+            🔥 New all-time record! {count} players online — previous best was{" "}
+            {peakStats.allTimePeak}
           </span>
           <button
             onClick={() => setShowPeakBanner(false)}
@@ -1090,16 +1094,21 @@ export default function Dashboard({
   );
 }
 
-// Fetch the first active server's name and live count server-side
-// so link previews (Discord, Twitter, etc.) get proper meta tags
-// even though they never execute JavaScript.
+// Fetch the requested server's name and live count server-side
+// so link previews (Discord, Twitter, etc.) get proper meta tags.
+// Reads ?server=CODE from the URL so shared links show the right server.
 export async function getServerSideProps(context) {
+  // Always use https for og:image and og:url — http images are blocked by most previewers
+  const host = context.req.headers.host;
   const domain =
-    process.env.NEXT_PUBLIC_DOMAIN || `https://${context.req.headers.host}`;
+    process.env.NEXT_PUBLIC_DOMAIN ||
+    (host ? `https://${host}` : "https://fivem-stats.vercel.app");
+
+  // The ?server= query param is set by the share button
+  const requestedCode = context.query.server || null;
+
   try {
-    const base =
-      process.env.NEXT_PUBLIC_DOMAIN || `http://${context.req.headers.host}`;
-    const r = await fetch(`${base}/api/servers`, {
+    const r = await fetch(`${domain}/api/servers`, {
       headers: { Accept: "application/json" },
     });
     if (!r.ok) throw new Error("servers API failed");
@@ -1107,20 +1116,23 @@ export async function getServerSideProps(context) {
     if (!Array.isArray(servers) || servers.length === 0)
       throw new Error("no servers");
 
-    // Use the first (highest player count) server as the default
-    const first = servers[0];
+    // Use the requested server if valid, otherwise fall back to first (highest player count)
+    const target =
+      (requestedCode && servers.find((s) => s.code === requestedCode)) ||
+      servers[0];
+
     return {
       props: {
-        activeServer: first.code,
-        ssrServerName: first.name || first.code,
-        ssrPlayerCount: first.player_count ?? null,
+        activeServer: target.code,
+        ssrServerName: target.name || target.code,
+        ssrPlayerCount: target.player_count ?? null,
         domain,
       },
     };
   } catch {
     return {
       props: {
-        activeServer: "3lamjz",
+        activeServer: requestedCode || "3lamjz",
         ssrServerName: "",
         ssrPlayerCount: null,
         domain,
