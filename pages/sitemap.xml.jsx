@@ -1,4 +1,8 @@
-const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN || "https://fivem-stats.vercel.app";
+// Strip any trailing slash from the domain so URLs don't get double slashes
+// e.g. if NEXT_PUBLIC_DOMAIN is set to "https://fivem-stats.vercel.app/" in Vercel
+const DOMAIN = (
+  process.env.NEXT_PUBLIC_DOMAIN || "https://fivem-stats.vercel.app"
+).replace(/\/$/, "");
 
 const pages = [
   { path: "/", priority: "1.0", freq: "always" },
@@ -15,11 +19,15 @@ const pages = [
 export async function getServerSideProps({ res }) {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pages.map((p) => `  <url>
+${pages
+  .map(
+    (p) => `  <url>
     <loc>${DOMAIN}${p.path}</loc>
     <changefreq>${p.freq}</changefreq>
     <priority>${p.priority}</priority>
-  </url>`).join("\n")}
+  </url>`,
+  )
+  .join("\n")}
 </urlset>`;
   res.setHeader("Content-Type", "text/xml");
   res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate");
@@ -28,4 +36,6 @@ ${pages.map((p) => `  <url>
   return { props: {} };
 }
 
-export default function Sitemap() { return null; }
+export default function Sitemap() {
+  return null;
+}
