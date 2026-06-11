@@ -413,8 +413,8 @@ export default function About() {
               margin: "0 auto 28px",
             }}
           >
-            Any publicly listed FiveM server can be added. Just head to the add
-            server page or reach out via the contact form.
+            Any publicly listed FiveM server can be added. Reach out via the
+            contact form.
           </p>
           <div
             style={{
