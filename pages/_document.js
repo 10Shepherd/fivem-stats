@@ -4,6 +4,10 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
+        <meta
+          name="google-site-verification"
+          content="-qqp6MMeG1Q1cHDhyeqQRbByR8ScD7PeavgPYRp3KDM"
+        />
         {/* Favicons (served from /public/assets) */}
         <link rel="icon" href="/assets/favicon.ico" sizes="any" />
         <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />

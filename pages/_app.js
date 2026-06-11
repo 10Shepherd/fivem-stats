@@ -4,7 +4,7 @@ import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 
-const NO_LAYOUT = ["/privacy", "/terms", "/contact", "/404"];
+const NO_LAYOUT = ["/privacy", "/terms", "/contact", "/about", "/404"];
 
 export default function App({ Component, pageProps, router }) {
   const { pathname } = useRouter();
