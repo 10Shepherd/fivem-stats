@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Head from "next/head";
 import HourlyHeatmap from "../components/HourlyHeatmap";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 const REFRESH_MS = 60_000;
 const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
 
-export default function HeatmapPage({ activeServer: propServer = "3lamjz" }) {
+export default function HeatmapPage({ activeServer: propServer = "" }) {
   const [activeServer, setActiveServer] = useState(propServer);
-  const [hourly, setHourly] = useState([]);
+  const [hourlyByDay, setHourlyByDay] = useState([]);
   const [serverInfo, setServerInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
@@ -21,6 +22,7 @@ export default function HeatmapPage({ activeServer: propServer = "3lamjz" }) {
   useEffect(() => {
     serverRef.current = activeServer;
   }, [activeServer]);
+
   useEffect(() => {
     const fn = (e) => setActiveServer(e.detail.code);
     window.addEventListener("serverChange", fn);
@@ -28,6 +30,7 @@ export default function HeatmapPage({ activeServer: propServer = "3lamjz" }) {
   }, []);
 
   const refresh = useCallback(async () => {
+    if (!serverRef.current) return;
     setTimedOut(false);
     const timeout = setTimeout(() => setTimedOut(true), 12000);
     try {
@@ -38,7 +41,7 @@ export default function HeatmapPage({ activeServer: propServer = "3lamjz" }) {
         fetch("/api/servers").then((r) => r.json()),
       ]);
       clearTimeout(timeout);
-      if (!p.error) setHourly(p.hourly || []);
+      if (!p.error) setHourlyByDay(p.hourlyByDay || []);
       if (Array.isArray(list)) {
         const sv = list.find((s) => s.code === serverRef.current);
         if (sv) setServerInfo(sv);
@@ -53,8 +56,10 @@ export default function HeatmapPage({ activeServer: propServer = "3lamjz" }) {
   useEffect(() => {
     setLoading(true);
     setTimedOut(false);
+    setHourlyByDay([]);
     refresh();
   }, [activeServer, refresh]);
+
   useEffect(() => {
     const iv = setInterval(refresh, REFRESH_MS);
     return () => clearInterval(iv);
@@ -142,7 +147,9 @@ export default function HeatmapPage({ activeServer: propServer = "3lamjz" }) {
             </button>
           </div>
         ) : (
-          <HourlyHeatmap hourly={hourly} userTz={userTz} />
+          <ErrorBoundary>
+            <HourlyHeatmap hourlyByDay={hourlyByDay} userTz={userTz} />
+          </ErrorBoundary>
         )}
       </main>
     </>

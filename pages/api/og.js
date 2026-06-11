@@ -2,7 +2,16 @@ import sql from "../../lib/db";
 
 export default async function handler(req, res) {
   try {
-    const code = req.query.server || "3lamjz";
+    let code = req.query.server;
+
+    // Fall back to first active server if none specified
+    if (!code) {
+      const servers =
+        await sql`SELECT code FROM servers WHERE active = TRUE ORDER BY id LIMIT 1`;
+      if (!servers.length) throw new Error("no servers");
+      code = servers[0].code;
+    }
+
     const row = await sql`
       SELECT s.name, snap.player_count, snap.max_players
       FROM servers s

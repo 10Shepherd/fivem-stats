@@ -2,14 +2,15 @@ import sql from "../../lib/db";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
-  const { hours, from, to, server = "3lamjz" } = req.query;
+
+  const { hours, from, to, server } = req.query;
+  if (!server) return res.status(400).json({ error: "server param required" });
 
   try {
     let rows;
 
     if (from && to) {
       const fromDate = new Date(from);
-      // FIX #10: end of day in UTC by going to start of next day minus 1ms
       const toDate = new Date(to);
       toDate.setUTCHours(23, 59, 59, 999);
 
@@ -20,30 +21,28 @@ export default async function handler(req, res) {
 
       const diffH = (toDate - fromDate) / 3600000;
 
-      // FIX #4: explicit bucket tiers that produce clean label counts
       if (diffH <= 6) {
         rows =
-          await sql`SELECT date_trunc('minute',ts) AS t,ROUND(AVG(player_count))::int AS count,MAX(player_count) AS peak,MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>=${fromDate.toISOString()} AND ts<=${toDate.toISOString()} GROUP BY 1 ORDER BY 1`;
+          await sql`SELECT date_trunc('minute',ts) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>=${fromDate.toISOString()} AND ts<=${toDate.toISOString()} GROUP BY 1 ORDER BY 1`;
       } else if (diffH <= 72) {
         rows =
-          await sql`SELECT date_trunc('hour',ts) AS t,ROUND(AVG(player_count))::int AS count,MAX(player_count) AS peak,MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>=${fromDate.toISOString()} AND ts<=${toDate.toISOString()} GROUP BY 1 ORDER BY 1`;
+          await sql`SELECT date_trunc('hour',ts) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>=${fromDate.toISOString()} AND ts<=${toDate.toISOString()} GROUP BY 1 ORDER BY 1`;
       } else {
         rows =
-          await sql`SELECT date_trunc('day',ts) AS t,ROUND(AVG(player_count))::int AS count,MAX(player_count) AS peak,MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>=${fromDate.toISOString()} AND ts<=${toDate.toISOString()} GROUP BY 1 ORDER BY 1`;
+          await sql`SELECT date_trunc('day',ts) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>=${fromDate.toISOString()} AND ts<=${toDate.toISOString()} GROUP BY 1 ORDER BY 1`;
       }
     } else {
       const h = Math.min(parseInt(hours) || 24, 720);
 
-      // FIX #4: 1H = minute buckets, 6H = minute, 24H = HOUR (not minute), 7D+ = day
       if (h <= 2) {
         rows =
-          await sql`SELECT date_trunc('minute',ts) AS t,ROUND(AVG(player_count))::int AS count,MAX(player_count) AS peak,MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
+          await sql`SELECT date_trunc('minute',ts) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
       } else if (h <= 48) {
         rows =
-          await sql`SELECT date_trunc('hour',ts) AS t,ROUND(AVG(player_count))::int AS count,MAX(player_count) AS peak,MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
+          await sql`SELECT date_trunc('hour',ts) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
       } else {
         rows =
-          await sql`SELECT date_trunc('day',ts) AS t,ROUND(AVG(player_count))::int AS count,MAX(player_count) AS peak,MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
+          await sql`SELECT date_trunc('day',ts) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
       }
     }
 
@@ -59,7 +58,6 @@ export default async function handler(req, res) {
           }
         : { current: 0, peak: 0, avg: 0, maxSlots: 32, dataPoints: 0 };
 
-    // Pass bucket type so frontend can format labels correctly
     const bucket = (() => {
       if (from && to) {
         const diffH = (new Date(to) - new Date(from)) / 3600000;

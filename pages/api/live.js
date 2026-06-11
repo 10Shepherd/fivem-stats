@@ -1,10 +1,10 @@
 import sql from "../../lib/db";
 
-// /api/live?server=3lamjz  (defaults to first active server)
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
 
-  const code = req.query.server || "3lamjz";
+  const code = req.query.server;
+  if (!code) return res.status(400).json({ error: "server param required" });
 
   try {
     const rows = await sql`

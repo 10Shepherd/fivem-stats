@@ -2,8 +2,22 @@ import sql from "../../lib/db";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
-  const code = req.query.server || "3lamjz";
+
+  let code = req.query.server;
   const label = req.query.label || "players";
+
+  // If no server specified, use the first active server
+  if (!code) {
+    try {
+      const servers =
+        await sql`SELECT code FROM servers WHERE active = TRUE ORDER BY id LIMIT 1`;
+      if (!servers.length)
+        return res.status(404).json({ error: "no servers tracked" });
+      code = servers[0].code;
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
 
   try {
     const rows = await sql`

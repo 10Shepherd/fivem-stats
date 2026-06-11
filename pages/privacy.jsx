@@ -52,7 +52,6 @@ export default function Privacy() {
         id="main-content"
         style={{ maxWidth: 760, margin: "0 auto", padding: "48px 28px 0" }}
       >
-        {/* Header */}
         <div className="fade-up d1" style={{ marginBottom: 48 }}>
           <div
             style={{
@@ -88,7 +87,6 @@ export default function Privacy() {
           </P>
         </div>
 
-        {/* Divider */}
         <div
           style={{ height: 1, background: "var(--line)", marginBottom: 48 }}
         />
@@ -136,10 +134,14 @@ export default function Privacy() {
             <P>
               Server snapshots (player count, timestamp, max slots) are stored
               in a serverless PostgreSQL database hosted on Neon (neon.tech).
-              Data older than 90 days may be periodically purged to manage
-              storage. Player names visible in snapshots are sourced from
-              FiveM's public API and reflect names players have chosen to
-              display publicly on the server browser.
+              Data older than{" "}
+              <strong style={{ color: "var(--text)", fontWeight: 500 }}>
+                180 days
+              </strong>{" "}
+              is automatically purged by a weekly maintenance job. Player names
+              visible in snapshots are sourced from FiveM's public API and
+              reflect names players have chosen to display publicly on the
+              server browser.
             </P>
           </Section>
 

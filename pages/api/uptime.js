@@ -1,14 +1,23 @@
 import sql from "../../lib/db";
+
 const GAP_MINUTES = 5;
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
+
+  const server = req.query.server;
+  if (!server) return res.status(400).json({ error: "server param required" });
+
   const days = Math.min(parseInt(req.query.days) || 7, 30);
-  const server = req.query.server || "3lamjz";
 
   try {
-    const rows =
-      await sql`SELECT ts,player_count FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${days}||' days')::interval ORDER BY ts ASC`;
+    const rows = await sql`
+      SELECT ts, player_count
+      FROM snapshots
+      WHERE server_code = ${server} AND ts > NOW() - (${days} || ' days')::interval
+      ORDER BY ts ASC
+    `;
+
     if (rows.length === 0)
       return res
         .status(200)

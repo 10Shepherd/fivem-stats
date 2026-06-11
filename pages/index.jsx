@@ -15,6 +15,9 @@ import HourlyHeatmap from "../components/HourlyHeatmap";
 import DailyPeakBar from "../components/DailyPeakBar";
 import UptimeTracker from "../components/UptimeTracker";
 import PeakSummary from "../components/PeakSummary";
+import ErrorBoundary from "../components/ErrorBoundary";
+import { SkeletonKpiGrid, SkeletonChart } from "../components/SkeletonCard";
+import sql from "../lib/db";
 
 const REFRESH_MS = 30_000;
 const toDateInput = (d) => d.toISOString().split("T")[0];
@@ -112,7 +115,7 @@ const PRESETS = [
 ];
 
 export default function Dashboard({
-  activeServer: propServer = "3lamjz",
+  activeServer: propServer = "",
   ssrServerName = "",
   ssrPlayerCount = null,
   domain = "",
@@ -131,7 +134,7 @@ export default function Dashboard({
   });
   const [peakStats, setPeakStats] = useState({
     daily: [],
-    hourly: [],
+    hourlyByDay: [],
     allTimePeak: 0,
   });
   const [uptime, setUptime] = useState({});
@@ -146,7 +149,6 @@ export default function Dashboard({
   const [showPeakBanner, setShowPeakBanner] = useState(false);
   const [shareMsg, setShareMsg] = useState("");
 
-  // #12: Read URL params on mount
   useEffect(() => {
     setUserTz(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const now = new Date();
@@ -155,7 +157,13 @@ export default function Dashboard({
     setTodayStr(toDateInput(now));
 
     const q = router.query;
-    if (q.server) setActiveServer(q.server);
+    if (q.server) {
+      setActiveServer(q.server);
+      // Sync Layout sidebar highlight so the correct server is highlighted
+      window.dispatchEvent(
+        new CustomEvent("serverChangeFromPage", { detail: { code: q.server } }),
+      );
+    }
     if (q.hours) {
       setActivePreset(parseInt(q.hours) || 24);
       setFilterMode("preset");
@@ -174,9 +182,8 @@ export default function Dashboard({
   const presetRef = useRef(24);
   const fromRef = useRef("");
   const toRef = useRef("");
-  // Tracks the highest player count we've already announced — prevents
-  // re-announcing the same peak on every 30s refresh cycle
   const announcedPeakRef = useRef(0);
+
   useEffect(() => {
     serverRef.current = activeServer;
   }, [activeServer]);
@@ -198,23 +205,27 @@ export default function Dashboard({
     window.addEventListener("serverChange", fn);
     return () => window.removeEventListener("serverChange", fn);
   }, []);
+
   useEffect(() => {
     setLoading(true);
     setLive(null);
-    setPeakStats({ daily: [], hourly: [], allTimePeak: 0 }); // clear stale peak from previous server
+    setPeakStats({ daily: [], hourlyByDay: [], allTimePeak: 0 });
     setHistory({ rows: [], summary: {}, bucket: "hour" });
-    announcedPeakRef.current = 0; // reset so the new server gets a fresh slate
+    announcedPeakRef.current = 0;
     refreshAll();
   }, [activeServer]); // eslint-disable-line
 
   const fetchLive = async () => {
+    if (!serverRef.current) return;
     try {
       const r = await fetch(`/api/live?server=${serverRef.current}`);
       const d = await r.json();
       setLive(d);
     } catch {}
   };
+
   const fetchHistory = async (opts = {}) => {
+    if (!serverRef.current) return;
     try {
       const url =
         opts.from && opts.to
@@ -225,20 +236,25 @@ export default function Dashboard({
       if (!d.error) setHistory(d);
     } catch {}
   };
+
   const fetchPeakStats = async () => {
+    if (!serverRef.current) return;
     try {
       const r = await fetch(`/api/peakstats?server=${serverRef.current}`);
       const d = await r.json();
       if (!d.error) setPeakStats(d);
     } catch {}
   };
+
   const fetchUptime = async () => {
+    if (!serverRef.current) return;
     try {
       const r = await fetch(`/api/uptime?server=${serverRef.current}&days=7`);
       const d = await r.json();
       if (!d.error) setUptime(d);
     } catch {}
   };
+
   const fetchServerList = async () => {
     try {
       const r = await fetch("/api/servers");
@@ -265,16 +281,18 @@ export default function Dashboard({
     setLastSync(new Date());
     setLoading(false);
     setCountdown(Math.round(REFRESH_MS / 1000));
-  }, []);
+  }, []); // eslint-disable-line
 
   useEffect(() => {
     refreshAll();
     const iv = setInterval(refreshAll, REFRESH_MS);
     return () => clearInterval(iv);
   }, [refreshAll]);
+
   useEffect(() => {
     if (filterMode === "preset") fetchHistory({ hours: activePreset });
   }, [activePreset]); // eslint-disable-line
+
   useEffect(() => {
     setCountdown(Math.round(REFRESH_MS / 1000));
     const tick = setInterval(
@@ -284,20 +302,15 @@ export default function Dashboard({
     return () => clearInterval(tick);
   }, [lastSync]);
 
-  // Peak notification — only fires when the live count BREAKS the stored
-  // all-time record (strictly greater than), and only once per new high.
-  // Guards: !loading ensures both live AND peakStats are fully loaded for
-  // the current server before we evaluate — prevents false triggers during
-  // server switches where live loads faster than peakStats.
   useEffect(() => {
     if (
-      !loading && // both live + peakStats fully loaded
+      !loading &&
       live?.playerCount > 0 &&
       peakStats.allTimePeak > 0 &&
-      live.playerCount > peakStats.allTimePeak && // must BEAT the record, not just match it
-      live.playerCount > announcedPeakRef.current // must be a count we haven't announced yet
+      live.playerCount > peakStats.allTimePeak &&
+      live.playerCount > announcedPeakRef.current
     ) {
-      announcedPeakRef.current = live.playerCount; // remember so we don't repeat it
+      announcedPeakRef.current = live.playerCount;
       setShowPeakBanner(true);
       const t = setTimeout(() => setShowPeakBanner(false), 15000);
       return () => clearTimeout(t);
@@ -321,13 +334,13 @@ export default function Dashboard({
     setFilterMode("range");
     fetchHistory({ from: fromDate, to: toDate });
   }
+
   function selectPreset(h) {
     setFilterMode("preset");
     setActivePreset(h);
     setRangeError("");
   }
 
-  // #12: Share current view
   function handleShare() {
     const params = new URLSearchParams({ server: activeServer });
     if (filterMode === "range") {
@@ -355,7 +368,7 @@ export default function Dashboard({
     tFull: fmtTooltipLabel(r.t, userTz),
     count: r.count,
   }));
-  const sevenDayAvg = peakStats.daily.length
+  const sevenDayAvg = peakStats.daily?.length
     ? Math.round(
         peakStats.daily.reduce((a, d) => a + d.avg, 0) / peakStats.daily.length,
       )
@@ -439,7 +452,7 @@ export default function Dashboard({
         <meta name="twitter:image" content={`${domain}/assets/icon-512.png`} />
       </Head>
 
-      {/* #13: Peak banner */}
+      {/* Peak banner */}
       {showPeakBanner && (
         <div
           style={{
@@ -542,7 +555,6 @@ export default function Dashboard({
           >
             ↻ {countdown}s
           </span>
-          {/* #12: Share button */}
           <button
             onClick={handleShare}
             aria-label="Share link"
@@ -580,422 +592,445 @@ export default function Dashboard({
       </header>
 
       <main id="main-content" className="page-content">
-        <div className="kpi-grid fade-up d1">
-          <div className="card" style={{ padding: "18px 18px 16px" }}>
-            <p style={LABEL}>Players online</p>
-            <AnimatedNumber
-              value={loading ? "—" : count}
-              large
-              color="var(--green)"
-            />
-            <p
-              style={{
-                ...MONO,
-                fontSize: 10,
-                color: "var(--muted)",
-                marginTop: 8,
-              }}
-            >
-              of {maxSlots} · {fillPct}%
-            </p>
-            <div
-              aria-hidden="true"
-              style={{
-                marginTop: 10,
-                height: 2,
-                background: "var(--line2)",
-                borderRadius: 1,
-                overflow: "hidden",
-              }}
-            >
-              <div
+        {/* KPI Grid — skeleton while loading */}
+        {loading ? (
+          <SkeletonKpiGrid />
+        ) : (
+          <div className="kpi-grid fade-up d1">
+            <div className="card" style={{ padding: "18px 18px 16px" }}>
+              <p style={LABEL}>Players online</p>
+              <AnimatedNumber value={count} large color="var(--green)" />
+              <p
                 style={{
-                  height: "100%",
-                  width: `${fillPct}%`,
-                  background:
-                    "linear-gradient(90deg,var(--green),rgba(61,220,132,0.5))",
-                  borderRadius: 1,
-                  transition: "width 1.2s ease",
-                }}
-              />
-            </div>
-          </div>
-          <div className="card" style={{ padding: "18px 18px 16px" }}>
-            <p style={LABEL}>
-              {filterMode === "range"
-                ? "Range peak"
-                : activePreset >= 24
-                  ? `${activePreset / 24}d peak`
-                  : `${activePreset}h peak`}
-            </p>
-            <AnimatedNumber
-              value={loading ? "—" : (summary.peak ?? "—")}
-              color="#ffffff"
-            />
-            <p
-              style={{
-                ...MONO,
-                fontSize: 10,
-                color: "var(--muted)",
-                marginTop: 8,
-              }}
-            >
-              highest recorded
-            </p>
-          </div>
-          <div className="card" style={{ padding: "18px 18px 16px" }}>
-            <p style={LABEL}>7d avg</p>
-            <AnimatedNumber
-              value={loading ? "—" : (sevenDayAvg ?? "—")}
-              color="#ffffff"
-            />
-            <p
-              style={{
-                ...MONO,
-                fontSize: 10,
-                color: "var(--muted)",
-                marginTop: 8,
-              }}
-            >
-              daily average
-            </p>
-          </div>
-          <div className="card" style={{ padding: "18px 18px 16px" }}>
-            <p style={LABEL}>Uptime</p>
-            <AnimatedNumber
-              value={uptime.uptimePct != null ? `${uptime.uptimePct}%` : "—"}
-              color={
-                uptime.uptimePct >= 99
-                  ? "var(--green)"
-                  : uptime.uptimePct >= 95
-                    ? "#f5a623"
-                    : uptime.uptimePct != null
-                      ? "var(--red)"
-                      : "#fff"
-              }
-            />
-            <p
-              style={{
-                ...MONO,
-                fontSize: 10,
-                color: "var(--muted)",
-                marginTop: 8,
-              }}
-            >
-              7 days
-            </p>
-          </div>
-        </div>
-
-        {/* Chart */}
-        <div
-          className="card fade-up d2"
-          style={{ marginBottom: 14, overflow: "hidden" }}
-        >
-          <div
-            style={{
-              padding: "16px 20px 0",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 10,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-              <span
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 14,
-                  letterSpacing: "0.1em",
-                  color: "#fff",
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--muted)",
+                  marginTop: 8,
                 }}
               >
-                PLAYER COUNT
-              </span>
-              <span style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
-                {tzShort}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
-              <div
-                role="group"
-                aria-label="Time range"
-                style={{ display: "flex", gap: 3 }}
-              >
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.hours}
-                    onClick={() => selectPreset(p.hours)}
-                    aria-pressed={
-                      filterMode === "preset" && activePreset === p.hours
-                    }
-                    className={`btn ${filterMode === "preset" && activePreset === p.hours ? "btn-active" : ""}`}
-                    style={{ padding: "4px 10px", fontSize: 10 }}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
+                of {maxSlots} · {fillPct}%
+              </p>
               <div
                 aria-hidden="true"
-                style={{ width: 1, height: 14, background: "var(--line2)" }}
+                style={{
+                  marginTop: 10,
+                  height: 2,
+                  background: "var(--line2)",
+                  borderRadius: 1,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${fillPct}%`,
+                    background:
+                      "linear-gradient(90deg,var(--green),rgba(61,220,132,0.5))",
+                    borderRadius: 1,
+                    transition: "width 1.2s ease",
+                  }}
+                />
+              </div>
+            </div>
+            <div className="card" style={{ padding: "18px 18px 16px" }}>
+              <p style={LABEL}>
+                {filterMode === "range"
+                  ? "Range peak"
+                  : activePreset >= 24
+                    ? `${activePreset / 24}d peak`
+                    : `${activePreset}h peak`}
+              </p>
+              <AnimatedNumber value={summary.peak ?? "—"} color="#ffffff" />
+              <p
+                style={{
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--muted)",
+                  marginTop: 8,
+                }}
+              >
+                highest recorded
+              </p>
+            </div>
+            <div className="card" style={{ padding: "18px 18px 16px" }}>
+              <p style={LABEL}>7d avg</p>
+              <AnimatedNumber value={sevenDayAvg ?? "—"} color="#ffffff" />
+              <p
+                style={{
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--muted)",
+                  marginTop: 8,
+                }}
+              >
+                daily average
+              </p>
+            </div>
+            <div className="card" style={{ padding: "18px 18px 16px" }}>
+              <p style={LABEL}>Uptime</p>
+              <AnimatedNumber
+                value={uptime.uptimePct != null ? `${uptime.uptimePct}%` : "—"}
+                color={
+                  uptime.uptimePct >= 99
+                    ? "var(--green)"
+                    : uptime.uptimePct >= 95
+                      ? "#f5a623"
+                      : uptime.uptimePct != null
+                        ? "var(--red)"
+                        : "#fff"
+                }
               />
+              <p
+                style={{
+                  ...MONO,
+                  fontSize: 10,
+                  color: "var(--muted)",
+                  marginTop: 8,
+                }}
+              >
+                7 days
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Chart — skeleton while loading */}
+        {loading ? (
+          <SkeletonChart />
+        ) : (
+          <div
+            className="card fade-up d2"
+            style={{ marginBottom: 14, overflow: "hidden" }}
+          >
+            <div
+              style={{
+                padding: "16px 20px 0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 10,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 14,
+                    letterSpacing: "0.1em",
+                    color: "#fff",
+                  }}
+                >
+                  PLAYER COUNT
+                </span>
+                <span style={{ ...MONO, fontSize: 9, color: "var(--muted)" }}>
+                  {tzShort}
+                </span>
+              </div>
               <div
-                className="date-row"
                 style={{
                   display: "flex",
-                  alignItems: "flex-end",
-                  gap: 6,
+                  alignItems: "center",
+                  gap: 8,
                   flexWrap: "wrap",
                 }}
               >
                 <div
-                  style={{ display: "flex", flexDirection: "column", gap: 3 }}
+                  role="group"
+                  aria-label="Time range"
+                  style={{ display: "flex", gap: 3 }}
                 >
-                  <label
-                    htmlFor="date-from"
-                    style={{
-                      ...MONO,
-                      fontSize: 8,
-                      letterSpacing: "0.12em",
-                      color: "var(--muted)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    From
-                  </label>
-                  <input
-                    id="date-from"
-                    type="date"
-                    value={fromDate}
-                    max={toDate}
-                    onChange={(e) => {
-                      setFromDate(e.target.value);
-                      setRangeError("");
-                    }}
-                  />
+                  {PRESETS.map((p) => (
+                    <button
+                      key={p.hours}
+                      onClick={() => selectPreset(p.hours)}
+                      aria-pressed={
+                        filterMode === "preset" && activePreset === p.hours
+                      }
+                      className={`btn ${filterMode === "preset" && activePreset === p.hours ? "btn-active" : ""}`}
+                      style={{ padding: "4px 10px", fontSize: 10 }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
                 </div>
-                <span
+                <div
                   aria-hidden="true"
+                  style={{ width: 1, height: 14, background: "var(--line2)" }}
+                />
+                <div
+                  className="date-row"
                   style={{
-                    ...MONO,
-                    fontSize: 10,
-                    color: "var(--muted)",
-                    paddingBottom: 8,
+                    display: "flex",
+                    alignItems: "flex-end",
+                    gap: 6,
+                    flexWrap: "wrap",
                   }}
                 >
-                  →
-                </span>
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 3 }}
-                >
-                  <label
-                    htmlFor="date-to"
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 3 }}
+                  >
+                    <label
+                      htmlFor="date-from"
+                      style={{
+                        ...MONO,
+                        fontSize: 8,
+                        letterSpacing: "0.12em",
+                        color: "var(--muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      From
+                    </label>
+                    <input
+                      id="date-from"
+                      type="date"
+                      value={fromDate}
+                      max={toDate}
+                      onChange={(e) => {
+                        setFromDate(e.target.value);
+                        setRangeError("");
+                      }}
+                    />
+                  </div>
+                  <span
+                    aria-hidden="true"
                     style={{
                       ...MONO,
-                      fontSize: 8,
-                      letterSpacing: "0.12em",
+                      fontSize: 10,
                       color: "var(--muted)",
-                      textTransform: "uppercase",
+                      paddingBottom: 8,
                     }}
                   >
-                    To
-                  </label>
-                  <input
-                    id="date-to"
-                    type="date"
-                    value={toDate}
-                    min={fromDate}
-                    max={todayStr}
-                    onChange={(e) => {
-                      setToDate(e.target.value);
-                      setRangeError("");
-                    }}
-                  />
-                </div>
-                <button
-                  onClick={applyRange}
-                  className={`btn ${filterMode === "range" ? "btn-green" : ""}`}
-                  style={{ padding: "5px 12px", fontSize: 10, marginBottom: 0 }}
-                >
-                  apply
-                </button>
-                {rangeError && (
-                  <span
-                    role="alert"
-                    style={{ ...MONO, fontSize: 10, color: "var(--red)" }}
-                  >
-                    {rangeError}
+                    →
                   </span>
-                )}
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 3 }}
+                  >
+                    <label
+                      htmlFor="date-to"
+                      style={{
+                        ...MONO,
+                        fontSize: 8,
+                        letterSpacing: "0.12em",
+                        color: "var(--muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      To
+                    </label>
+                    <input
+                      id="date-to"
+                      type="date"
+                      value={toDate}
+                      min={fromDate}
+                      max={todayStr}
+                      onChange={(e) => {
+                        setToDate(e.target.value);
+                        setRangeError("");
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={applyRange}
+                    className={`btn ${filterMode === "range" ? "btn-green" : ""}`}
+                    style={{
+                      padding: "5px 12px",
+                      fontSize: 10,
+                      marginBottom: 0,
+                    }}
+                  >
+                    apply
+                  </button>
+                  {rangeError && (
+                    <span
+                      role="alert"
+                      style={{ ...MONO, fontSize: 10, color: "var(--red)" }}
+                    >
+                      {rangeError}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          <div style={{ height: 210, padding: "12px 8px 0" }}>
-            {chartData.length === 0 ? (
-              <div
-                style={{
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <p style={{ ...MONO, fontSize: 11, color: "var(--muted)" }}>
-                  {loading ? "loading..." : "no data for this range"}
-                </p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={chartData}
-                  margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="0%"
-                        stopColor="#3ddc84"
-                        stopOpacity={0.18}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="#3ddc84"
-                        stopOpacity={0.01}
-                      />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="1 5"
-                    stroke="#1a1a1a"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="t"
-                    tick={{
-                      fill: "#888",
-                      fontSize: 9,
-                      fontFamily: "'DM Mono',monospace",
-                      fontWeight: 300,
-                    }}
-                    tickLine={false}
-                    axisLine={{ stroke: "#1a1a1a" }}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    tick={{
-                      fill: "#888",
-                      fontSize: 9,
-                      fontFamily: "'DM Mono',monospace",
-                      fontWeight: 300,
-                    }}
-                    tickLine={false}
-                    axisLine={false}
-                    domain={[0, maxSlots]}
-                    width={26}
-                  />
-                  <Tooltip
-                    content={<ChartTooltip />}
-                    cursor={{ stroke: "rgba(61,220,132,0.15)", strokeWidth: 1 }}
-                    labelFormatter={(_, payload) =>
-                      payload?.[0]?.payload?.tFull || ""
-                    }
-                  />
-                  <ReferenceLine
-                    y={maxSlots}
-                    stroke="rgba(61,220,132,0.06)"
-                    strokeDasharray="4 6"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#3ddc84"
-                    strokeWidth={1.5}
-                    fill="url(#grad)"
-                    dot={false}
-                    activeDot={{
-                      r: 4,
-                      fill: "#3ddc84",
-                      stroke: "rgba(61,220,132,0.3)",
-                      strokeWidth: 4,
-                    }}
-                    animationDuration={700}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div
-            className="status-bar"
-            style={{
-              display: "flex",
-              gap: 24,
-              padding: "10px 22px 14px",
-              borderTop: "1px solid var(--line)",
-              marginTop: 8,
-              overflowX: "auto",
-            }}
-          >
-            {[
-              {
-                label: "status",
-                value: online ? "online" : "offline",
-                color: online ? "var(--green)" : "var(--red)",
-              },
-              { label: "updated", value: fmtAge(live?.ageSeconds) },
-              { label: "points", value: summary.dataPoints ?? "—" },
-              { label: "avg", value: summary.avg ?? "—" },
-              { label: "capacity", value: `${maxSlots} slots` },
-              { label: "timezone", value: tzShort },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ flexShrink: 0 }}>
+            <div style={{ height: 210, padding: "12px 8px 0" }}>
+              {chartData.length === 0 ? (
                 <div
                   style={{
-                    ...MONO,
-                    fontSize: 8,
-                    letterSpacing: "0.14em",
-                    color: "var(--muted)",
-                    textTransform: "uppercase",
-                    marginBottom: 3,
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  {label}
+                  <p style={{ ...MONO, fontSize: 11, color: "var(--muted)" }}>
+                    no data for this range
+                  </p>
                 </div>
-                <div
-                  style={{
-                    ...MONO,
-                    fontSize: 11,
-                    color: color || "var(--text)",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {value}
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={chartData}
+                    margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="0%"
+                          stopColor="#3ddc84"
+                          stopOpacity={0.18}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#3ddc84"
+                          stopOpacity={0.01}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="1 5"
+                      stroke="#1a1a1a"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="t"
+                      tick={{
+                        fill: "#888",
+                        fontSize: 9,
+                        fontFamily: "'DM Mono',monospace",
+                        fontWeight: 300,
+                      }}
+                      tickLine={false}
+                      axisLine={{ stroke: "#1a1a1a" }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      tick={{
+                        fill: "#888",
+                        fontSize: 9,
+                        fontFamily: "'DM Mono',monospace",
+                        fontWeight: 300,
+                      }}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[0, maxSlots]}
+                      width={26}
+                    />
+                    <Tooltip
+                      content={<ChartTooltip />}
+                      cursor={{
+                        stroke: "rgba(61,220,132,0.15)",
+                        strokeWidth: 1,
+                      }}
+                      labelFormatter={(_, payload) =>
+                        payload?.[0]?.payload?.tFull || ""
+                      }
+                    />
+                    <ReferenceLine
+                      y={maxSlots}
+                      stroke="rgba(61,220,132,0.06)"
+                      strokeDasharray="4 6"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#3ddc84"
+                      strokeWidth={1.5}
+                      fill="url(#grad)"
+                      dot={false}
+                      activeDot={{
+                        r: 4,
+                        fill: "#3ddc84",
+                        stroke: "rgba(61,220,132,0.3)",
+                        strokeWidth: 4,
+                      }}
+                      animationDuration={700}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <div
+              className="status-bar"
+              style={{
+                display: "flex",
+                gap: 24,
+                padding: "10px 22px 14px",
+                borderTop: "1px solid var(--line)",
+                marginTop: 8,
+                overflowX: "auto",
+              }}
+            >
+              {[
+                {
+                  label: "status",
+                  value: online ? "online" : "offline",
+                  color: online ? "var(--green)" : "var(--red)",
+                },
+                { label: "updated", value: fmtAge(live?.ageSeconds) },
+                { label: "points", value: summary.dataPoints ?? "—" },
+                { label: "avg", value: summary.avg ?? "—" },
+                { label: "capacity", value: `${maxSlots} slots` },
+                { label: "timezone", value: tzShort },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ flexShrink: 0 }}>
+                  <div
+                    style={{
+                      ...MONO,
+                      fontSize: 8,
+                      letterSpacing: "0.14em",
+                      color: "var(--muted)",
+                      textTransform: "uppercase",
+                      marginBottom: 3,
+                    }}
+                  >
+                    {label}
+                  </div>
+                  <div
+                    style={{
+                      ...MONO,
+                      fontSize: 11,
+                      color: color || "var(--text)",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    {value}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        <PeakSummary peakStats={peakStats} summary={summary} userTz={userTz} />
-        <div className="bottom-grid" style={{ marginBottom: 14 }}>
-          <HourlyHeatmap hourly={peakStats.hourly} userTz={userTz} />
-          <DailyPeakBar
-            daily={peakStats.daily}
-            maxSlots={maxSlots}
+        <ErrorBoundary>
+          <PeakSummary
+            peakStats={peakStats}
+            summary={summary}
             userTz={userTz}
           />
-        </div>
-        <UptimeTracker uptime={uptime} userTz={userTz} />
+        </ErrorBoundary>
 
-        {/* #15: Embed badge info */}
+        <div className="bottom-grid" style={{ marginBottom: 14 }}>
+          <ErrorBoundary>
+            <HourlyHeatmap
+              hourlyByDay={peakStats.hourlyByDay || []}
+              userTz={userTz}
+            />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <DailyPeakBar
+              daily={peakStats.daily}
+              maxSlots={maxSlots}
+              userTz={userTz}
+            />
+          </ErrorBoundary>
+        </div>
+
+        <ErrorBoundary>
+          <UptimeTracker uptime={uptime} userTz={userTz} />
+        </ErrorBoundary>
+
+        {/* Embed badge info */}
         <div
           className="card fade-up d7"
           style={{ marginTop: 14, padding: "16px 20px" }}
@@ -1098,29 +1133,29 @@ export default function Dashboard({
   );
 }
 
-// Fetch the requested server's name and live count server-side
-// so link previews (Discord, Twitter, etc.) get proper meta tags.
-// Reads ?server=CODE from the URL so shared links show the right server.
+// Direct DB query — no self-referencing HTTP call during SSR
 export async function getServerSideProps(context) {
-  // Always use https for og:image and og:url — http images are blocked by most previewers
   const host = context.req.headers.host;
-  const domain =
-    process.env.NEXT_PUBLIC_DOMAIN ||
-    (host ? `https://${host}` : "https://fivem-stats.vercel.app");
-
-  // The ?server= query param is set by the share button
+  const domain = (process.env.NEXT_PUBLIC_DOMAIN || `https://${host}`).replace(
+    /\/$/,
+    "",
+  );
   const requestedCode = context.query.server || null;
 
   try {
-    const r = await fetch(`${domain}/api/servers`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!r.ok) throw new Error("servers API failed");
-    const servers = await r.json();
-    if (!Array.isArray(servers) || servers.length === 0)
-      throw new Error("no servers");
+    const servers = await sql`
+      SELECT s.code, s.name, snap.player_count
+      FROM servers s
+      LEFT JOIN LATERAL (
+        SELECT player_count FROM snapshots
+        WHERE server_code = s.code ORDER BY ts DESC LIMIT 1
+      ) snap ON TRUE
+      WHERE s.active = TRUE
+      ORDER BY snap.player_count DESC NULLS LAST
+    `;
 
-    // Use the requested server if valid, otherwise fall back to first (highest player count)
+    if (!servers.length) throw new Error("no servers");
+
     const target =
       (requestedCode && servers.find((s) => s.code === requestedCode)) ||
       servers[0];
@@ -1136,7 +1171,7 @@ export async function getServerSideProps(context) {
   } catch {
     return {
       props: {
-        activeServer: requestedCode || "3lamjz",
+        activeServer: requestedCode || "",
         ssrServerName: "",
         ssrPlayerCount: null,
         domain,

@@ -3,11 +3,11 @@ import Sidebar from "./Sidebar";
 
 const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
 
-export default function Layout({ children }) {
+export default function Layout({ children, initialActiveServer }) {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile
   const [servers, setServers] = useState([]);
-  const [activeServer, setActiveServer] = useState("3lamjz");
+  const [activeServer, setActiveServer] = useState(initialActiveServer || "");
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -22,11 +22,22 @@ export default function Layout({ children }) {
     return () => mq.removeEventListener("change", fn);
   }, []);
 
+  // Listen for server changes initiated by pages (e.g. from URL params)
+  useEffect(() => {
+    const fn = (e) => setActiveServer(e.detail.code);
+    window.addEventListener("serverChangeFromPage", fn);
+    return () => window.removeEventListener("serverChangeFromPage", fn);
+  }, []);
+
   const fetchServers = useCallback(async () => {
     try {
       const r = await fetch("/api/servers");
       const d = await r.json();
-      if (Array.isArray(d)) setServers(d);
+      if (Array.isArray(d)) {
+        setServers(d);
+        // If no active server set yet, default to first
+        setActiveServer((prev) => prev || d[0]?.code || "");
+      }
     } catch {}
   }, []);
 
@@ -44,7 +55,6 @@ export default function Layout({ children }) {
   function handleServerChange(code) {
     setActiveServer(code);
     if (isMobile) setSidebarOpen(false);
-    // Dispatch custom event so pages can listen
     window.dispatchEvent(new CustomEvent("serverChange", { detail: { code } }));
   }
 
@@ -137,7 +147,6 @@ export default function Layout({ children }) {
           </div>
         )}
 
-        {/* Page content — pass activeServer via context-like prop */}
         {typeof children === "function"
           ? children({ activeServer, servers })
           : children}

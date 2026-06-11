@@ -2,7 +2,7 @@
 
 Live multi-server player count tracker for FiveM servers. RPStats-style sidebar layout with real-time charts, uptime tracking, peak analytics, and date range filtering. All times displayed in the visitor's local timezone.
 
-**Live demo:** your Vssercel URL  
+**Live demo:** https://fivem-stats.vercel.app
 **Tracking:** server `Code`
 
 ---
@@ -22,14 +22,14 @@ Live multi-server player count tracker for FiveM servers. RPStats-style sidebar 
 
 - **Multi-server** — track unlimited servers; switch between them in the sidebar
 - **Sidebar layout** — collapsible on desktop, slide-in overlay on mobile
-- **Live player count** — polls every 30 seconds
+- **Live player count** — polls every 60 seconds via cron, refreshes client-side every 30 seconds
 - **Player count chart** — 1H / 6H / 24H / 7D presets + custom date range
 - **Timezone-aware** — all chart times shown in the visitor's local timezone
 - **Uptime tracker** — 7-day hourly heatmap (7 rows × 24 cells), incident log
 - **Peak insights** — busiest day, peak hour, all-time peak
 - **Daily peak bar chart** — 7-day overview
-- **Hourly activity heatmap** — weekly pattern visualization
-- **Auto-purge** — removes snapshots older than 60 days (weekly cron)
+- **Hourly activity heatmap** — real 30-day per-day-per-hour data (no synthetic variation)
+- **Auto-purge** — removes snapshots older than 180 days (weekly cron)
 - **OG image** — dynamic social preview with live player count
 - **SEO** — sitemap.xml, robots.txt
 - **Discord bot** — hourly embed with capacity bar + player count in bot presence
@@ -117,12 +117,6 @@ npm start
 
 Host free on [Railway](https://railway.app) or [Render](https://render.com).
 
-**Setup:**
-
-1. Create a bot at [discord.com/developers](https://discord.com/developers)
-2. Add bot to your server with `Send Messages` permission
-3. Right-click your stats channel → Copy Channel ID → paste in `.env`
-
 ---
 
 ## File structure
@@ -144,10 +138,13 @@ pages/
     servers.js           ← list / add / remove servers
     purge.js             ← weekly cleanup of old snapshots
     og.js                ← dynamic OG image with live count
+    badge.js             ← SVG embed badge
 
 components/
   Layout.jsx             ← app shell with sidebar + mobile hamburger
   Sidebar.jsx            ← collapsible sidebar with server switcher
+  ErrorBoundary.jsx      ← catches render errors per section
+  SkeletonCard.jsx       ← shimmer loading placeholders
   HourlyHeatmap.jsx
   DailyPeakBar.jsx
   UptimeTracker.jsx      ← 7×24 uptime grid + incident log
@@ -173,18 +170,19 @@ setup.sql                ← run once in Neon: creates tables, indexes, seeds se
 
 ## API reference
 
-| Endpoint                    | Params                                         | Description                                   |
-| --------------------------- | ---------------------------------------------- | --------------------------------------------- |
-| `GET /api/servers`          | —                                              | List all active servers with live counts      |
-| `POST /api/servers`         | `{code,name,tags,color}` + secret header       | Add a server                                  |
-| `DELETE /api/servers?code=` | secret header                                  | Deactivate a server                           |
-| `GET /api/live`             | `?server=CODE`                                 | Latest snapshot for one server                |
-| `GET /api/history`          | `?server=CODE&hours=N` or `&from=DATE&to=DATE` | Time-series data                              |
-| `GET /api/peakstats`        | `?server=CODE`                                 | Daily peaks, hourly heatmap, busiest day/hour |
-| `GET /api/uptime`           | `?server=CODE&days=N`                          | Gap detection, uptime %, incident log         |
-| `GET /api/poll`             | secret header                                  | Trigger a manual poll of all servers          |
-| `GET /api/purge`            | secret header                                  | Delete snapshots older than 60 days           |
-| `GET /api/og`               | `?server=CODE`                                 | Dynamic SVG OG image                          |
+| Endpoint                    | Params                                       | Description                                   |
+| --------------------------- | -------------------------------------------- | --------------------------------------------- |
+| `GET /api/servers`          | —                                            | List all active servers with live counts      |
+| `POST /api/servers`         | `{code,name,tags,color}` + secret header     | Add a server                                  |
+| `DELETE /api/servers?code=` | secret header                                | Deactivate a server                           |
+| `GET /api/live`             | `?server=CODE` (required)                    | Latest snapshot for one server                |
+| `GET /api/history`          | `?server=CODE` + `&hours=N` or `&from=&to=`  | Time-series data                              |
+| `GET /api/peakstats`        | `?server=CODE` (required)                    | Daily peaks, hourly heatmap, busiest day/hour |
+| `GET /api/uptime`           | `?server=CODE` (required) + `&days=N`        | Gap detection, uptime %, incident log         |
+| `GET /api/poll`             | secret header                                | Trigger a manual poll of all servers          |
+| `GET /api/purge`            | secret header                                | Delete snapshots older than 180 days          |
+| `GET /api/og`               | `?server=CODE` (optional, defaults to first) | Dynamic SVG OG image                          |
+| `GET /api/badge`            | `?server=CODE` (optional) + `&label=NAME`    | SVG embed badge                               |
 
 ---
 
@@ -194,12 +192,9 @@ All chart timestamps are converted to the **visitor's local timezone** using `In
 
 ## Data retention
 
-Snapshots older than **60 days** are deleted by the weekly purge cron. With one server polled every 60 seconds, that's ~86,400 rows/month — well within Neon's 0.5 GB free tier.
+Snapshots older than **180 days** are deleted by the weekly purge cron. With one server polled every 60 seconds, that's ~43,200 rows/server/day — well within Neon's 0.5 GB free tier for 2–3 servers. Monitor your Neon dashboard storage and reduce `KEEP_DAYS` in `purge.js` if you add many servers.
 
 ## Contact form
 
-In `pages/contact.jsx`, replace `YOUR_EMAIL@gmail.com` with your actual email at:
-
-```js
-"https://formsubmit.co/ajax/YOUR_EMAIL@gmail.com";
-```
+In `pages/contact.jsx`, replace the formsubmit hash with your own at:
+[formsubmit.co](https://formsubmit.co)
