@@ -1,10 +1,30 @@
 import sql from "../../lib/db";
 
+function qs(val) {
+  return Array.isArray(val) ? val[0] : val;
+}
+function xmlEscape(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+function sanitizeCode(val) {
+  return String(val ?? "")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 32);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
 
-  let code = req.query.server;
-  const label = req.query.label || "players";
+  let code = sanitizeCode(qs(req.query.server));
+  // Sanitize label — allow printable text but escape XML special chars, cap length
+  const label =
+    xmlEscape(String(qs(req.query.label) ?? "players").slice(0, 50)) ||
+    "players";
 
   // If no server specified, use the first active server
   if (!code) {

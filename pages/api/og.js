@@ -1,15 +1,37 @@
 import sql from "../../lib/db";
 
+// Safely coerce a query param that may be string | string[] → string
+function qs(val) {
+  return Array.isArray(val) ? val[0] : val;
+}
+
+// Escape characters that are special in XML/SVG to prevent injection
+function xmlEscape(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// CFX server codes are short alphanumeric strings — strip anything else
+function sanitizeCode(val) {
+  return String(val ?? "")
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 32);
+}
+
 export default async function handler(req, res) {
   try {
-    let code = req.query.server;
+    let code = sanitizeCode(qs(req.query.server));
 
     // Fall back to first active server if none specified
     if (!code) {
       const servers =
         await sql`SELECT code FROM servers WHERE active = TRUE ORDER BY id LIMIT 1`;
       if (!servers.length) throw new Error("no servers");
-      code = servers[0].code;
+      code = sanitizeCode(servers[0].code);
     }
 
     const row = await sql`
@@ -27,6 +49,10 @@ export default async function handler(req, res) {
     const fillPct = maxSlots > 0 ? Math.round((count / maxSlots) * 100) : 0;
     const barW = Math.round((fillPct / 100) * 460);
 
+    // Escape user-sourced strings before embedding in SVG
+    const safeName = xmlEscape(name).toUpperCase();
+    const safeCode = xmlEscape(code);
+
     const svg = `<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -41,15 +67,15 @@ export default async function handler(req, res) {
   ${Array.from({ length: 8 }, (_, i) => `<line x1="${150 * i}" y1="0" x2="${150 * i}" y2="630" stroke="#161616" stroke-width="1"/>`).join("")}
   ${Array.from({ length: 5 }, (_, i) => `<line x1="0" y1="${126 * i}" x2="1200" y2="${126 * i}" stroke="#161616" stroke-width="1"/>`).join("")}
   <text x="80" y="110" font-family="Arial Black, sans-serif" font-size="48" font-weight="900" fill="white" letter-spacing="8">FIVEM STATS</text>
-  <text x="80" y="148" font-family="'Courier New', monospace" font-size="13" font-weight="300" fill="#4a4a4a" letter-spacing="4">${name.toUpperCase()}</text>
+  <text x="80" y="148" font-family="'Courier New', monospace" font-size="13" font-weight="300" fill="#4a4a4a" letter-spacing="4">${safeName}</text>
   <text x="80" y="360" font-family="Arial Black, sans-serif" font-size="220" font-weight="900" fill="#3ddc84" opacity="0.95" filter="url(#glow)" letter-spacing="-4">${count}</text>
   <text x="82" y="410" font-family="'Courier New', monospace" font-size="16" font-weight="300" fill="#4a4a4a" letter-spacing="6">PLAYERS ONLINE</text>
   <rect x="80" y="450" width="460" height="4" rx="2" fill="#1e1e1e"/>
   <rect x="80" y="450" width="${barW}" height="4" rx="2" fill="url(#bar)"/>
   <text x="80" y="482" font-family="'Courier New', monospace" font-size="13" font-weight="300" fill="#2a2a2a" letter-spacing="3">of ${maxSlots} slots · ${fillPct}% capacity</text>
   <text x="900" y="300" font-family="Arial Black, sans-serif" font-size="120" font-weight="900" fill="#111111" letter-spacing="-2">${fillPct}%</text>
-  <rect x="80" y="540" width="${code.length * 10 + 30}" height="30" rx="15" fill="#111111" stroke="#202020" stroke-width="1"/>
-  <text x="${(code.length * 10 + 30) / 2 + 80}" y="560" font-family="'Courier New', monospace" font-size="12" fill="#4a4a4a" letter-spacing="3" text-anchor="middle">${code}</text>
+  <rect x="80" y="540" width="${safeCode.length * 10 + 30}" height="30" rx="15" fill="#111111" stroke="#202020" stroke-width="1"/>
+  <text x="${(safeCode.length * 10 + 30) / 2 + 80}" y="560" font-family="'Courier New', monospace" font-size="12" fill="#4a4a4a" letter-spacing="3" text-anchor="middle">${safeCode}</text>
 </svg>`;
 
     res.setHeader("Content-Type", "image/svg+xml");

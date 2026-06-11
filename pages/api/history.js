@@ -3,7 +3,17 @@ import sql from "../../lib/db";
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
 
-  const { hours, from, to, server } = req.query;
+  // Coerce params — req.query values can be string | string[] when duplicated
+  const server = Array.isArray(req.query.server)
+    ? req.query.server[0]
+    : req.query.server;
+  const hours = Array.isArray(req.query.hours)
+    ? req.query.hours[0]
+    : req.query.hours;
+  const from = Array.isArray(req.query.from)
+    ? req.query.from[0]
+    : req.query.from;
+  const to = Array.isArray(req.query.to) ? req.query.to[0] : req.query.to;
   if (!server) return res.status(400).json({ error: "server param required" });
 
   try {

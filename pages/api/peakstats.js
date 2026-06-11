@@ -3,7 +3,9 @@ import sql from "../../lib/db";
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).end();
 
-  const server = req.query.server;
+  const server = Array.isArray(req.query.server)
+    ? req.query.server[0]
+    : req.query.server;
   if (!server) return res.status(400).json({ error: "server param required" });
 
   try {
