@@ -15,17 +15,6 @@ export default async function handler(req, res) {
       ],
     );
 
-    // FIX #9: proper null guard before parseInt
-    const fmtHour = (h) => {
-      if (h == null || h === undefined) return null;
-      const n = parseInt(h, 10);
-      if (isNaN(n)) return null;
-      if (n === 0) return "12AM";
-      if (n < 12) return `${n}AM`;
-      if (n === 12) return "12PM";
-      return `${n - 12}PM`;
-    };
-
     res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate");
     return res.status(200).json({
       daily,
@@ -33,7 +22,8 @@ export default async function handler(req, res) {
       allTimePeak: alltime[0]?.peak ?? 0,
       trackingSince: alltime[0]?.since ?? null,
       busiestDay: busiestDay[0]?.day_trim ?? null,
-      busiestHour: fmtHour(busiestHour[0]?.hour),
+      // Raw UTC hour (0-23) — PeakSummary converts to local tz client-side
+      busiestHourUtc: busiestHour[0]?.hour ?? null,
       busiestHourAvg: busiestHour[0]?.avg_count ?? null,
     });
   } catch (err) {

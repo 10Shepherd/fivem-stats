@@ -1,5 +1,30 @@
 const MONO = { fontFamily: "var(--font-mono)", fontWeight: 300 };
 
+// Convert a UTC hour (0-23) to a formatted string in the given timezone
+function fmtHourInTz(utcHour, tz) {
+  if (utcHour == null) return "—";
+  try {
+    // Build a Date at that UTC hour today so toLocaleString can shift it
+    const d = new Date();
+    d.setUTCHours(utcHour, 0, 0, 0);
+    const localHour = parseInt(
+      d.toLocaleString("en-US", {
+        timeZone: tz,
+        hour: "numeric",
+        hour12: false,
+      }),
+      10,
+    );
+    if (isNaN(localHour)) return "—";
+    if (localHour === 0) return "12AM";
+    if (localHour < 12) return `${localHour}AM`;
+    if (localHour === 12) return "12PM";
+    return `${localHour - 12}PM`;
+  } catch {
+    return "—";
+  }
+}
+
 export default function PeakSummary({
   peakStats = {},
   summary = {},
@@ -7,7 +32,7 @@ export default function PeakSummary({
 }) {
   const {
     busiestDay,
-    busiestHour,
+    busiestHourUtc,
     busiestHourAvg,
     allTimePeak,
     trackingSince,
@@ -27,6 +52,8 @@ export default function PeakSummary({
     }
   })();
 
+  const busiestHourLocal = fmtHourInTz(busiestHourUtc, userTz);
+
   const items = [
     {
       label: "Busiest day",
@@ -36,7 +63,7 @@ export default function PeakSummary({
     },
     {
       label: "Peak hour",
-      value: busiestHour || "—",
+      value: busiestHourLocal,
       sub: busiestHourAvg
         ? `avg ${busiestHourAvg} players · ${tzLabel}`
         : `30-day avg · ${tzLabel}`,
