@@ -34,20 +34,16 @@ export default async function handler(req, res) {
     } else {
       const h = Math.min(parseInt(hours) || 24, 720);
 
-      if (h <= 2) {
-        // 1H and below → per-minute buckets
+      if (h <= 8) {
+        // 6H → per-minute buckets
         rows =
           await sql`SELECT date_trunc('minute',ts) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
-      } else if (h <= 8) {
-        // 6H → 30-minute buckets (floor epoch to nearest 1800s)
+      } else if (h <= 48) {
+        // 24H → per-30-minute buckets
         rows =
           await sql`SELECT to_timestamp(floor(extract(epoch from ts)/1800)*1800) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
-      } else if (h <= 48) {
-        // 24H → hourly buckets
-        rows =
-          await sql`SELECT date_trunc('hour',ts) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
       } else {
-        // 7D+ → daily buckets
+        // 7D+ → per-day buckets
         rows =
           await sql`SELECT date_trunc('day',ts) AS t, ROUND(AVG(player_count))::int AS count, MAX(player_count) AS peak, MAX(max_players) AS max_slots FROM snapshots WHERE server_code=${server} AND ts>NOW()-(${h}||' hours')::interval GROUP BY 1 ORDER BY 1`;
       }
@@ -68,10 +64,10 @@ export default async function handler(req, res) {
     const bucket = (() => {
       if (from && to) {
         const diffH = (new Date(to) - new Date(from)) / 3600000;
-        return diffH <= 6 ? "minute" : diffH <= 72 ? "hour" : "day";
+        return diffH <= 6 ? "minute" : diffH <= 72 ? "halfhour" : "day";
       }
       const h = parseInt(hours) || 24;
-      return h <= 2 ? "minute" : h <= 8 ? "halfhour" : h <= 48 ? "hour" : "day";
+      return h <= 8 ? "minute" : h <= 48 ? "halfhour" : "day";
     })();
 
     res.setHeader("Cache-Control", "s-maxage=55, stale-while-revalidate");

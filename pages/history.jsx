@@ -68,7 +68,6 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 const PRESETS = [
-  { label: "1H", hours: 1 },
   { label: "6H", hours: 6 },
   { label: "24H", hours: 24 },
   { label: "7D", hours: 168 },
@@ -87,7 +86,7 @@ export default function HistoryPage({ activeServer: propServer = "3lamjz" }) {
   const [loading, setLoading] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
   const [filterMode, setFilterMode] = useState("preset");
-  const [activePreset, setActivePreset] = useState(24);
+  const [activePreset, setActivePreset] = useState(6);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [rangeError, setRangeError] = useState("");

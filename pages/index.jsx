@@ -108,7 +108,6 @@ function AnimatedNumber({ value, large, color }) {
 }
 
 const PRESETS = [
-  { label: "1H", hours: 1 },
   { label: "6H", hours: 6 },
   { label: "24H", hours: 24 },
   { label: "7D", hours: 168 },
@@ -142,7 +141,7 @@ export default function Dashboard({
   const [lastSync, setLastSync] = useState(null);
   const [countdown, setCountdown] = useState(30);
   const [filterMode, setFilterMode] = useState("preset");
-  const [activePreset, setActivePreset] = useState(24);
+  const [activePreset, setActivePreset] = useState(6);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [rangeError, setRangeError] = useState("");
