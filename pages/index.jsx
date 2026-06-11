@@ -9,7 +9,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
+  ReferenceLine,s
 } from "recharts";
 import HourlyHeatmap from "../components/HourlyHeatmap";
 import DailyPeakBar from "../components/DailyPeakBar";
@@ -111,7 +111,12 @@ const PRESETS = [
   { label: "7D", hours: 168 },
 ];
 
-export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
+export default function Dashboard({
+  activeServer: propServer = "3lamjz",
+  ssrServerName = "",
+  ssrPlayerCount = null,
+  domain = "",
+}) {
   const router = useRouter();
 
   const [userTz, setUserTz] = useState("UTC");
@@ -372,15 +377,59 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
   return (
     <>
       <Head>
-        <title>FiveM Stats — {serverName}</title>
+        <title>
+          {ssrServerName
+            ? `FiveM Stats — ${ssrServerName}`
+            : "FiveM Stats — Live Multi-Server Tracker"}
+        </title>
         <meta
           name="description"
-          content={`Live server statistics — ${serverName}`}
+          content="Live player counts, uptime, peak analytics and heatmaps for FiveM servers — updated every 30 seconds."
         />
-        <meta property="og:title" content={`FiveM Stats — ${serverName}`} />
-        <meta property="og:image" content={`/api/og?server=${activeServer}`} />
+        <meta property="og:site_name" content="FiveM Stats" />
+        <meta property="og:type" content="website" />
+        <meta
+          property="og:title"
+          content={
+            ssrServerName
+              ? `FiveM Stats — ${ssrServerName}`
+              : "FiveM Stats — Live Multi-Server Tracker"
+          }
+        />
+        <meta
+          property="og:description"
+          content={
+            ssrServerName
+              ? `${ssrPlayerCount != null ? `${ssrPlayerCount} players online · ` : ""}Live stats, uptime & peak analytics for ${ssrServerName}`
+              : "Live player counts, uptime, peak analytics and heatmaps for FiveM servers."
+          }
+        />
+        <meta
+          property="og:image"
+          content={`${domain}/api/og?server=${propServer}`}
+        />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:url" content={`${domain}/`} />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content={`/api/og?server=${activeServer}`} />
+        <meta
+          name="twitter:title"
+          content={
+            ssrServerName ? `FiveM Stats — ${ssrServerName}` : "FiveM Stats"
+          }
+        />
+        <meta
+          name="twitter:description"
+          content={
+            ssrServerName
+              ? `Live stats for ${ssrServerName}`
+              : "Live FiveM server statistics"
+          }
+        />
+        <meta
+          name="twitter:image"
+          content={`${domain}/api/og?server=${propServer}`}
+        />
       </Head>
 
       {/* #13: Peak banner */}
@@ -1039,4 +1088,43 @@ export default function Dashboard({ activeServer: propServer = "3lamjz" }) {
       </main>
     </>
   );
+}
+
+// Fetch the first active server's name and live count server-side
+// so link previews (Discord, Twitter, etc.) get proper meta tags
+// even though they never execute JavaScript.
+export async function getServerSideProps(context) {
+  const domain =
+    process.env.NEXT_PUBLIC_DOMAIN || `https://${context.req.headers.host}`;
+  try {
+    const base =
+      process.env.NEXT_PUBLIC_DOMAIN || `http://${context.req.headers.host}`;
+    const r = await fetch(`${base}/api/servers`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!r.ok) throw new Error("servers API failed");
+    const servers = await r.json();
+    if (!Array.isArray(servers) || servers.length === 0)
+      throw new Error("no servers");
+
+    // Use the first (highest player count) server as the default
+    const first = servers[0];
+    return {
+      props: {
+        activeServer: first.code,
+        ssrServerName: first.name || first.code,
+        ssrPlayerCount: first.player_count ?? null,
+        domain,
+      },
+    };
+  } catch {
+    return {
+      props: {
+        activeServer: "3lamjz",
+        ssrServerName: "",
+        ssrPlayerCount: null,
+        domain,
+      },
+    };
+  }
 }
