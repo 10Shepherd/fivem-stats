@@ -1,5 +1,14 @@
 User-agent: *
 Allow: /
-Disallow: /api/
+Allow: /api/servers
+Allow: /api/live
+Allow: /api/history
+Allow: /api/peakstats
+Allow: /api/uptime
+Allow: /api/og
+Allow: /api/badge
+Disallow: /api/poll
+Disallow: /api/purge
+Disallow: /add-server
 
 Sitemap: https://fivem-stats.vercel.app/sitemap.xml
