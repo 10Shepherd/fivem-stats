@@ -17,7 +17,7 @@ const toDateInput = (d) => d.toISOString().split("T")[0];
 
 function fmtChartLabel(isoString, bucket, userTz) {
   const d = new Date(isoString);
-  if (bucket === "minute" || bucket === "hour")
+  if (bucket === "minute" || bucket === "halfhour" || bucket === "hour")
     return d.toLocaleTimeString("en-US", {
       timeZone: userTz,
       hour: "2-digit",

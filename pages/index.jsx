@@ -30,7 +30,7 @@ const fmtAge = (s) => {
 
 function fmtChartLabel(isoString, bucket, userTz) {
   const d = new Date(isoString);
-  if (bucket === "minute" || bucket === "hour")
+  if (bucket === "minute" || bucket === "halfhour" || bucket === "hour")
     return d.toLocaleTimeString("en-US", {
       timeZone: userTz,
       hour: "2-digit",
@@ -429,10 +429,10 @@ export default function Dashboard({
               : "Live player counts, uptime, peak analytics and heatmaps for FiveM servers."
           }
         />
-        <meta property="og:image" content={`${domain}/assets/icon-192.png`} />
+        <meta property="og:image" content={`${domain}/assets/icon-512.png`} />
         <meta property="og:image:type" content="image/png" />
-        <meta property="og:image:width" content="192" />
-        <meta property="og:image:height" content="192" />
+        <meta property="og:image:width" content="512" />
+        <meta property="og:image:height" content="512" />
         <meta
           property="og:url"
           content={
@@ -454,7 +454,7 @@ export default function Dashboard({
               : "Live FiveM server statistics"
           }
         />
-        <meta name="twitter:image" content={`${domain}/assets/icon-192.png`} />
+        <meta name="twitter:image" content={`${domain}/assets/icon-512.png`} />
       </Head>
 
       {/* Peak banner */}
